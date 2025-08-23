@@ -1,0 +1,171 @@
+Create a single-page web application using HTML, JavaScript, and a modern framework like React (using JSX and hosted via CDN, e.g., cdn.jsdelivr.net for React and dependencies). The app must allow users to input their Vimeo API token and either select or input a Vimeo album/folder ID to retrieve all video links from that folder and export them to an Excel file. Follow these requirements:
+
+
+
+
+
+Functionality:
+
+
+
+
+
+Provide a simple, clean UI with a form containing:
+
+
+
+
+
+An input field for the Vimeo API token (text input, masked for security).
+
+
+
+An input field for the Vimeo album/folder ID (text input) or a dropdown to select from the user's albums if feasible.
+
+
+
+A button to fetch the video links.
+
+
+
+A button to export the retrieved links to an Excel file.
+
+
+
+Use the Vimeo API (endpoint /me/albums/{album_id}/videos) to fetch the list of videos in the specified album.
+
+
+
+Extract the video title and download link (if available) for each video.
+
+
+
+Display the list of video titles and links in a table on the page.
+
+
+
+Allow exporting the video data (title and link) to an Excel file using a library like SheetJS (xlsx.js, hosted via CDN).
+
+
+
+Maintain the order of videos as returned by the Vimeo API (e.g., sorted by name or creation date).
+
+
+
+Handle errors gracefully (e.g., invalid API token, incorrect album ID, or API rate limits) with user-friendly error messages.
+
+
+
+Technical Requirements:
+
+
+
+
+
+Use React with JSX for the front-end, avoiding React.createElement.
+
+
+
+Use modern JavaScript (ES6+) and Babel (via CDN) if needed.
+
+
+
+Use Tailwind CSS (via CDN) for styling to ensure a professional, responsive design.
+
+
+
+Use the Fetch API for making Vimeo API requests.
+
+
+
+Include SheetJS (via CDN) for Excel file generation.
+
+
+
+Do not use <form> onSubmit, as the app will run in a sandboxed environment without 'allow-forms' permission.
+
+
+
+Use className instead of class for JSX attributes.
+
+
+
+Ensure the app is a single HTML file that runs in any modern browser without external dependencies beyond CDNs.
+
+
+
+Store the API token temporarily in memory (not localStorage) for security.
+
+
+
+Excel Export:
+
+
+
+
+
+The exported Excel file should have columns: "Video Title" and "Video Link".
+
+
+
+Name the file dynamically, e.g., vimeo_videos_{album_id}_{timestamp}.xlsx.
+
+
+
+Ensure the file is downloadable via a browser-compatible method (e.g., creating a Blob and triggering a download).
+
+
+
+Security and Compliance:
+
+
+
+
+
+Do not hardcode any API tokens or sensitive data.
+
+
+
+Validate user inputs (e.g., ensure the album ID is numeric and the API token is non-empty).
+
+
+
+Include a note in the UI reminding users to use their own Vimeo API token and respect Vimeo's terms of service.
+
+
+
+Output:
+
+
+
+
+
+Provide the complete code for a single index.html file containing all HTML, JSX, and JavaScript.
+
+
+
+Wrap the code in an <xaiArtifact> tag with a unique UUID for artifact_id, titled "index.html", and contentType="text/html".
+
+
+
+Include comments in the code to explain key sections (e.g., API request, Excel export logic).
+
+
+
+Provide brief instructions on how to use the app (e.g., where to obtain the Vimeo API token and album ID).
+
+Example workflow for the app:
+
+
+
+
+
+User enters their Vimeo API token and album ID.
+
+
+
+User clicks "Fetch Videos" to retrieve video titles and links, which are displayed in a table.
+
+
+
+User clicks "Export to Excel" to download an Excel file containing the video data.
