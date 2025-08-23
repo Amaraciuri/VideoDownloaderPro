@@ -2206,6 +2206,11 @@ export default function Home() {
             </div>
           </AlertDescription>
         </Alert>
+
+        {/* Creator Footer */}
+        <div className="mt-4 text-center text-gray-500 text-sm border-t pt-4">
+          <p>Created by <span className="font-medium text-gray-700">Davide Volpato</span> with ❤️ - Free to use</p>
+        </div>
       </div>
     </div>
   );
