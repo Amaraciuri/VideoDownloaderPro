@@ -1962,38 +1962,126 @@ export default function Home() {
           </Card>
         )}
 
-        {/* Instructions */}
+        {/* Instructions - Dynamic based on provider */}
         <Alert className="mt-8 border-blue-200 bg-blue-50">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription>
             <h3 className="text-lg font-semibold text-blue-900 mb-3">
               How to Use This App
             </h3>
-            <ol className="text-blue-800 space-y-2 list-decimal list-inside text-sm">
-              <li>
-                Create a Vimeo app at{" "}
-                <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
-                  Vimeo Developer Portal
-                </a>
-                {" "}and generate a Personal Access Token
-              </li>
-              <li>
-                <strong>Important:</strong> Make sure your token has at least these scopes:
-                <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                  <li><code className="bg-blue-100 px-1 rounded text-xs">private</code> - to access your personal folders</li>
-                  <li><code className="bg-blue-100 px-1 rounded text-xs">public</code> - to access public content</li>
-                  <li><code className="bg-blue-100 px-1 rounded text-xs">video_files</code> - to access download links (optional)</li>
-                </ul>
-              </li>
-              <li>Enter your API token and choose one of two options:</li>
-              <li className="ml-4">
-                <strong>Option A:</strong> Click "Load Folders" → Select a folder → Click "Fetch Videos"
-              </li>
-              <li className="ml-4">
-                <strong>Option B:</strong> Click "Load All Videos" to get all your videos directly (no folders needed)
-              </li>
-              <li>Review the video list and click "Export to Excel" to download the data</li>
-            </ol>
+            <div className="text-blue-800 space-y-2 text-sm">
+              {provider === 'vimeo' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Create a Vimeo app at{" "}
+                    <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Vimeo Developer Portal
+                    </a>
+                    {" "}and generate a Personal Access Token
+                  </li>
+                  <li>
+                    <strong>Important:</strong> Make sure your token has at least these scopes:
+                    <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                      <li><code className="bg-blue-100 px-1 rounded text-xs">private</code> - to access your personal folders</li>
+                      <li><code className="bg-blue-100 px-1 rounded text-xs">public</code> - to access public content</li>
+                      <li><code className="bg-blue-100 px-1 rounded text-xs">video_files</code> - to access download links (optional)</li>
+                    </ul>
+                  </li>
+                  <li>Enter your API token and choose one of two options:</li>
+                  <li className="ml-4">
+                    <strong>Option A:</strong> Click "Load Folders" → Select a folder → Click "Fetch Videos"
+                  </li>
+                  <li className="ml-4">
+                    <strong>Option B:</strong> Click "Load All Videos" to get all your videos directly (no folders needed)
+                  </li>
+                  <li>Review the video list and click "Export to Excel" to download the data</li>
+                </ol>
+              )}
+
+              {provider === 'bunny' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Get your Bunny.net API key from{" "}
+                    <a href="https://dash.bunny.net/account/settings" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Bunny.net Dashboard → Account Settings
+                    </a>
+                  </li>
+                  <li>
+                    Enter your <strong>Storage Zone name</strong> (where your video files are stored)
+                  </li>
+                  <li>Enter your API key and Storage Zone, then click "Load Videos from Bunny.net Storage"</li>
+                  <li>The app will scan for common video file formats (mp4, avi, mov, etc.)</li>
+                  <li>Review the video list and click "Export to Excel" to download the data</li>
+                  <li>
+                    <strong>Note:</strong> This works with Bunny.net Storage (static files), not Bunny.net Stream
+                  </li>
+                </ol>
+              )}
+
+              {provider === 'bunny-stream' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Get your Bunny.net Stream API key from{" "}
+                    <a href="https://dash.bunny.net/video-streaming" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Bunny.net Dashboard → Video Streaming
+                    </a>
+                  </li>
+                  <li>
+                    Find your <strong>Library ID</strong> in your streaming library settings
+                  </li>
+                  <li>Enter your API key and Library ID, then choose one of two options:</li>
+                  <li className="ml-4">
+                    <strong>Option A:</strong> Click "Load Collections" → Select a collection → Click "Fetch Videos"
+                  </li>
+                  <li className="ml-4">
+                    <strong>Option B:</strong> Click "Load All Videos" to get all videos from your library
+                  </li>
+                  <li>Review the video list and click "Export to Excel" to download the data</li>
+                  <li>
+                    <strong>Note:</strong> This works with Bunny.net Stream (video streaming), not static storage
+                  </li>
+                </ol>
+              )}
+
+              {provider === 'wistia' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Create a Wistia API token from{" "}
+                    <a href="https://wistia.com/support/developers/data-api#creating-and-managing-access-tokens" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Wistia Account Settings → API Access
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Required permissions:</strong> Make sure your token has read access to projects and media
+                  </li>
+                  <li>Enter your API token and choose one of two options:</li>
+                  <li className="ml-4">
+                    <strong>Option A:</strong> Click "Load Projects" → Select a project → Click "Fetch Videos"
+                  </li>
+                  <li className="ml-4">
+                    <strong>Option B:</strong> Click "Load All Videos" to get all videos from your account
+                  </li>
+                  <li>Review the video list and click "Export to Excel" to download the data</li>
+                  <li>
+                    <strong>Tip:</strong> Wistia provides excellent thumbnail and analytics data for your videos
+                  </li>
+                </ol>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+
+        {/* Footer with Security Note */}
+        <Alert className="mt-6 border-gray-200 bg-gray-50">
+          <Shield className="h-4 w-4 text-gray-600" />
+          <AlertDescription>
+            <div className="text-gray-700 text-sm">
+              <p className="font-medium mb-1">🔒 Privacy & Security</p>
+              <p>
+                I tuoi token API vengono utilizzati solo durante questa sessione e <strong>non vengono mai salvati nel database</strong>. 
+                Quando chiudi l'app o ricarichi la pagina, tutti i token vengono cancellati automaticamente per la tua sicurezza.
+              </p>
+            </div>
           </AlertDescription>
         </Alert>
       </div>
