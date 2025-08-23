@@ -90,6 +90,22 @@ export default function Home() {
   const [loadingWistiaProjects, setLoadingWistiaProjects] = useState(false);
   const { toast } = useToast();
 
+  // Get security notice message based on selected provider
+  const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia') => {
+    switch (provider) {
+      case 'vimeo':
+        return 'Use your own Vimeo API token and respect Vimeo\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
+      case 'bunny':
+        return 'Use your own Bunny.net Storage API key and respect Bunny.net\'s terms of service. Your API key is stored temporarily in memory only and is not saved to your device.';
+      case 'bunny-stream':
+        return 'Use your own Bunny.net Stream API key and Library ID and respect Bunny.net\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
+      case 'wistia':
+        return 'Use your own Wistia API token and respect Wistia\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
+      default:
+        return 'Use your own API credentials and respect the service\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
+    }
+  };
+
   // Apply filters when search query or date filter changes
   useEffect(() => {
     applyFilters();
@@ -1103,8 +1119,9 @@ export default function Home() {
           <Shield className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
             <p className="font-medium mb-1">Security & Compliance Notice</p>
-            <p className="text-sm">Use your own Vimeo API token and respect Vimeo's terms of service. 
-            Your API token is stored temporarily in memory only and is not saved to your device.</p>
+            <p className="text-sm">
+              {getSecurityNoticeMessage(provider)}
+            </p>
           </AlertDescription>
         </Alert>
 
