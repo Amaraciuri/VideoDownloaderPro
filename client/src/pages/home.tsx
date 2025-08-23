@@ -2078,8 +2078,8 @@ export default function Home() {
             <div className="text-gray-700 text-sm">
               <p className="font-medium mb-1">🔒 Privacy & Security</p>
               <p>
-                I tuoi token API vengono utilizzati solo durante questa sessione e <strong>non vengono mai salvati nel database</strong>. 
-                Quando chiudi l'app o ricarichi la pagina, tutti i token vengono cancellati automaticamente per la tua sicurezza.
+                Your API tokens are only used during this session and <strong>are never saved in the database</strong>. 
+                When you close the app or refresh the page, all tokens are automatically cleared for your security.
               </p>
             </div>
           </AlertDescription>
