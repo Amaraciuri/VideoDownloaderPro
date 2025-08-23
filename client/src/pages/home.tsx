@@ -76,6 +76,9 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
+  const [provider, setProvider] = useState<'vimeo' | 'bunny'>('vimeo');
+  const [bunnyApiKey, setBunnyApiKey] = useState('');
+  const [bunnyStorageZone, setBunnyStorageZone] = useState('');
   const { toast } = useToast();
 
   // Apply filters when search query or date filter changes
@@ -287,6 +290,88 @@ export default function Home() {
     }
   };
 
+  // Fetch videos from Bunny.net Storage API
+  const fetchBunnyVideos = async () => {
+    if (!bunnyApiKey.trim() || !bunnyStorageZone.trim()) {
+      setError('Please enter Bunny.net API key and Storage Zone name');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setAllVideosLoaded([]);
+    setSelectedFolder(null);
+
+    try {
+      // Bunny.net Storage API endpoint
+      const url = `https://storage.bunnycdn.com/${bunnyStorageZone}/`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'AccessKey': bunnyApiKey,
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid Bunny.net API key. Please check your credentials.');
+        } else if (response.status === 404) {
+          throw new Error('Storage zone not found. Please check the zone name.');
+        } else {
+          throw new Error(`Bunny.net API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Filter only video files
+      const videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv'];
+      const videoFiles = data.filter((file: any) => 
+        file.IsDirectory === false && 
+        videoExtensions.some(ext => file.ObjectName.toLowerCase().endsWith(ext))
+      );
+
+      // Convert to our video format
+      const videoList: VimeoVideo[] = videoFiles.map((file: any) => ({
+        title: file.ObjectName,
+        link: `https://${bunnyStorageZone}.b-cdn.net/${file.ObjectName}`,
+        downloadLink: `https://storage.bunnycdn.com/${bunnyStorageZone}/${file.ObjectName}`,
+        videoId: file.Guid || file.ObjectName,
+        thumbnailUrl: undefined // Bunny.net doesn't provide thumbnails by default
+      }));
+
+      // Sort videos by title
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
+      setVideos(videosWithAiTitles);
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from Bunny.net storage`);
+      toast({
+        title: "Success",
+        description: `Fetched ${sortedVideoList.length} videos successfully from Bunny.net`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch folders from Vimeo API
   const fetchFolders = async () => {
     // Input validation
@@ -392,7 +477,12 @@ export default function Home() {
 
   // Fetch all videos from user account (not from specific album)
   const fetchAllVideos = async () => {
-    // Input validation
+    if (provider === 'bunny') {
+      fetchBunnyVideos();
+      return;
+    }
+
+    // Input validation for Vimeo
     if (!apiToken.trim()) {
       setError('Please enter your Vimeo API token');
       return;
@@ -677,11 +767,11 @@ export default function Home() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
             <Video className="h-8 w-8 text-blue-600" />
-            Vimeo Video Exporter
+            Video Exporter
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Export video titles and links from your Vimeo albums to Excel files. 
-            Enter your API token, select an album, and export to Excel with just a few clicks.
+            Export video titles and links from your Vimeo albums or Bunny.net storage to Excel files. 
+            Choose your provider, enter your credentials, and export to Excel with just a few clicks.
           </p>
         </div>
 
@@ -704,10 +794,36 @@ export default function Home() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* API Token Input */}
+            {/* Provider Selection */}
             <div className="space-y-2">
-              <Label htmlFor="api-token">Vimeo API Token</Label>
-              <div className="relative">
+              <Label htmlFor="provider-select">Video Provider</Label>
+              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny') => {
+                setProvider(value);
+                // Clear data when switching providers
+                setVideos([]);
+                setAllVideosLoaded([]);
+                setFolders([]);
+                setSelectedFolder(null);
+                setError('');
+                setSuccess('');
+              }} data-testid="select-provider">
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose your video provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vimeo">Vimeo</SelectItem>
+                  <SelectItem value="bunny">Bunny.net CDN</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Vimeo Configuration */}
+            {provider === 'vimeo' && (
+              <>
+                {/* API Token Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="api-token">Vimeo API Token</Label>
+                  <div className="relative">
                 <Input
                   id="api-token"
                   type={showToken ? "text" : "password"}
@@ -727,66 +843,160 @@ export default function Home() {
                 >
                   {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
-              </div>
-              <p className="text-xs text-gray-500">
-                Get your API token from{" "}
-                <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                  Vimeo Developer
-                </a>
-                <br />
-                <strong>Important:</strong> Your token needs "private" scope to access albums
-              </p>
-            </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your API token from{" "}
+                    <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Vimeo Developer
+                    </a>
+                    <br />
+                    <strong>Important:</strong> Your token needs "private" scope to access albums
+                  </p>
+                </div>
+              </>
+            )}
 
-            {/* Load Albums Button */}
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={fetchFolders}
-                  disabled={loadingFolders || !apiToken.trim()}
-                  variant="outline"
-                  className="w-full"
-                  data-testid="button-load-folders"
-                >
-                  {loadingFolders ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      <Folder className="h-4 w-4 mr-2" />
-                      Load Folders
-                    </>
-                  )}
-                </Button>
+            {/* Bunny.net Configuration */}
+            {provider === 'bunny' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="bunny-api-key">Bunny.net API Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="bunny-api-key"
+                      type={showToken ? "text" : "password"}
+                      value={bunnyApiKey}
+                      onChange={(e) => setBunnyApiKey(e.target.value)}
+                      placeholder="Enter your Bunny.net API key"
+                      className="pr-10"
+                      data-testid="input-bunny-api-key"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      data-testid="button-toggle-bunny-token-visibility"
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="bunny-storage-zone">Storage Zone Name</Label>
+                  <Input
+                    id="bunny-storage-zone"
+                    type="text"
+                    value={bunnyStorageZone}
+                    onChange={(e) => setBunnyStorageZone(e.target.value)}
+                    placeholder="Enter your Bunny.net storage zone name"
+                    data-testid="input-bunny-storage-zone"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Get your API key and storage zone from{" "}
+                    <a href="https://panel.bunny.net/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Bunny.net Panel
+                    </a>
+                    <br />
+                    Storage zone is where your videos are stored
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Load Videos Button */}
+            {provider === 'vimeo' && (
+              <>
+                {/* Load Albums Button */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={fetchFolders}
+                      disabled={loadingFolders || !apiToken.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-folders"
+                    >
+                      {loadingFolders ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Folder className="h-4 w-4 mr-2" />
+                          Load Folders
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={fetchAllVideos}
+                      disabled={loading || !apiToken.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-all-videos"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Video className="h-4 w-4 mr-2" />
+                          Load All Videos
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Load folders OR load all your videos directly (if you don't use folders)
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Bunny.net Load Button */}
+            {provider === 'bunny' && (
+              <div className="space-y-2">
                 <Button
                   onClick={fetchAllVideos}
-                  disabled={loading || !apiToken.trim()}
-                  variant="outline"
+                  disabled={loading || !bunnyApiKey.trim() || !bunnyStorageZone.trim()}
                   className="w-full"
-                  data-testid="button-load-all-videos"
+                  data-testid="button-load-bunny-videos"
                 >
                   {loading ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                      Loading...
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Loading Videos...
                     </>
                   ) : (
                     <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Load All Videos
+                      <Download className="h-4 w-4 mr-2" />
+                      Load Videos from Bunny.net
                     </>
                   )}
                 </Button>
+                <p className="text-xs text-gray-500">
+                  Load all videos from your Bunny.net storage zone
+                </p>
               </div>
-              <p className="text-xs text-gray-500">
-                Load folders OR load all your videos directly (if you don't use folders)
-              </p>
-            </div>
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Folder Selection */}
-            {folders.length > 0 && (
+        {/* Folder Selection - Only for Vimeo */}
+        {provider === 'vimeo' && folders.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Folder className="h-5 w-5 text-gray-600" />
+                Select Folder
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-2">
                 <Label htmlFor="folder-select">Select Folder</Label>
                 <Select onValueChange={(value) => {
@@ -818,31 +1028,31 @@ export default function Home() {
                   {selectedFolder ? `Selected: ${selectedFolder.name}` : 'Select a folder to continue'}
                 </p>
               </div>
-            )}
 
-            {/* Fetch Videos Button */}
-            {selectedFolder && (
-              <Button
-                onClick={fetchVideos}
-                disabled={loading}
-                className="w-full"
-                data-testid="button-fetch-videos"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Fetching Videos...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Fetch Videos from "{selectedFolder.name}"
-                  </>
-                )}
-              </Button>
-            )}
+              {/* Fetch Videos Button */}
+              {selectedFolder && (
+                <Button
+                  onClick={fetchVideos}
+                  disabled={loading}
+                  className="w-full"
+                  data-testid="button-fetch-videos"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Fetching Videos...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Fetch Videos from "{selectedFolder.name}"
+                    </>
+                  )}
+                </Button>
+              )}
           </CardContent>
         </Card>
+        )}
 
         {/* Status Messages */}
         {error && (
