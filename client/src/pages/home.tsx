@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder } from "lucide-react";
+import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check } from "lucide-react";
 
 interface VimeoVideo {
   title: string;
@@ -54,7 +54,34 @@ export default function Home() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showToken, setShowToken] = useState(false);
+  const [copiedLinks, setCopiedLinks] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Copy link to clipboard
+  const copyToClipboard = async (link: string, videoTitle: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedLinks(prev => new Set(Array.from(prev).concat([link])));
+      toast({
+        title: "Link Copiato",
+        description: `Link di "${videoTitle}" copiato negli appunti`,
+      });
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedLinks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(link);
+          return newSet;
+        });
+      }, 2000);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Impossibile copiare il link. Prova a copiarlo manualmente.",
+      });
+    }
+  };
 
   // Fetch folders from Vimeo API
   const fetchFolders = async () => {
@@ -183,11 +210,19 @@ export default function Home() {
       
       const videoList = allVideos;
 
-      setVideos(videoList);
-      setSuccess(`Successfully fetched ${videoList.length} videos from your account`);
+      // Sort videos by title (natural sort for numbers in titles)  
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      setVideos(sortedVideoList);
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from your account`);
       toast({
         title: "Success",
-        description: `Fetched ${videoList.length} videos successfully`,
+        description: `Fetched ${sortedVideoList.length} videos successfully`,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -281,10 +316,19 @@ export default function Home() {
       const videoList = allVideos;
 
       setVideos(videoList);
-      setSuccess(`Successfully fetched ${videoList.length} videos from folder "${selectedFolder.name}"`);
+      // Sort videos by title (natural sort for numbers in titles)  
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      setVideos(sortedVideoList);
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from folder "${selectedFolder.name}"`);
       toast({
         title: "Success",
-        description: `Fetched ${videoList.length} videos successfully`,
+        description: `Fetched ${sortedVideoList.length} videos successfully`,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -561,6 +605,7 @@ export default function Home() {
                       <TableHead>Video Title</TableHead>
                       <TableHead>Video Link</TableHead>
                       <TableHead>Download Link</TableHead>
+                      <TableHead>Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -598,6 +643,50 @@ export default function Home() {
                               Not available
                             </span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyToClipboard(video.link, video.title)}
+                              className="flex items-center gap-1 h-8 px-2"
+                              data-testid={`button-copy-video-${index}`}
+                            >
+                              {copiedLinks.has(video.link) ? (
+                                <>
+                                  <Check className="h-3 w-3 text-green-600" />
+                                  <span className="text-xs">Copiato!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  <span className="text-xs">Copia</span>
+                                </>
+                              )}
+                            </Button>
+                            {video.downloadLink !== 'Not available' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(video.downloadLink, video.title + ' (Download)')}
+                                className="flex items-center gap-1 h-8 px-2"
+                                data-testid={`button-copy-download-${index}`}
+                              >
+                                {copiedLinks.has(video.downloadLink) ? (
+                                  <>
+                                    <Check className="h-3 w-3 text-green-600" />
+                                    <span className="text-xs">Copiato!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" />
+                                    <span className="text-xs">DL</span>
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
