@@ -15,10 +15,10 @@ interface VimeoVideo {
   downloadLink: string;
 }
 
-interface VimeoAlbum {
+interface VimeoFolder {
   uri: string;
   name: string;
-  description: string;
+  description?: string;
   privacy: {
     view: string;
   };
@@ -34,40 +34,40 @@ interface VimeoApiResponse {
   }>;
 }
 
-interface VimeoAlbumsApiResponse {
-  data: VimeoAlbum[];
+interface VimeoFoldersApiResponse {
+  data: VimeoFolder[];
 }
 
 export default function Home() {
   const [apiToken, setApiToken] = useState('');
-  const [albums, setAlbums] = useState<VimeoAlbum[]>([]);
-  const [selectedAlbum, setSelectedAlbum] = useState<VimeoAlbum | null>(null);
+  const [folders, setFolders] = useState<VimeoFolder[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<VimeoFolder | null>(null);
   const [videos, setVideos] = useState<VimeoVideo[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingAlbums, setLoadingAlbums] = useState(false);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showToken, setShowToken] = useState(false);
   const { toast } = useToast();
 
-  // Fetch albums from Vimeo API
-  const fetchAlbums = async () => {
+  // Fetch folders from Vimeo API
+  const fetchFolders = async () => {
     // Input validation
     if (!apiToken.trim()) {
       setError('Please enter your Vimeo API token first');
       return;
     }
 
-    setLoadingAlbums(true);
+    setLoadingFolders(true);
     setError('');
     setSuccess('');
-    setAlbums([]);
-    setSelectedAlbum(null);
+    setFolders([]);
+    setSelectedFolder(null);
     setVideos([]);
 
     try {
-      // API request to fetch user's albums
-      const response = await fetch('https://api.vimeo.com/me/albums', {
+      // API request to fetch user's folders
+      const response = await fetch('https://api.vimeo.com/me/folders', {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Accept': 'application/vnd.vimeo.*+json;version=3.4'
@@ -80,21 +80,21 @@ export default function Home() {
         } else if (response.status === 429) {
           throw new Error('API rate limit exceeded. Please try again later.');
         } else {
-          throw new Error(`Failed to fetch albums: ${response.status}`);
+          throw new Error(`Failed to fetch folders: ${response.status}`);
         }
       }
 
-      const data: VimeoAlbumsApiResponse = await response.json();
-      setAlbums(data.data);
+      const data: VimeoFoldersApiResponse = await response.json();
+      setFolders(data.data);
       
       if (data.data.length === 0) {
-        setSuccess('API connection successful, but no albums found. This might be because:');
-        setError('• Your API token may need additional permissions (scopes) to access albums\n• You may not have any albums created in your Vimeo account\n• Check that your token has "private" scope for accessing personal content');
+        setSuccess('API connection successful, but no folders found. This might be because:');
+        setError('• Your API token may need additional permissions (scopes) to access folders\n• You may not have any folders created in your Vimeo account\n• Check that your token has "private" scope for accessing personal content');
       } else {
-        setSuccess(`Successfully loaded ${data.data.length} albums from your account`);
+        setSuccess(`Successfully loaded ${data.data.length} folders from your account`);
         toast({
           title: "Success",
-          description: `Loaded ${data.data.length} albums successfully`,
+          description: `Loaded ${data.data.length} folders successfully`,
         });
       }
     } catch (err) {
@@ -106,7 +106,7 @@ export default function Home() {
         description: errorMessage,
       });
     } finally {
-      setLoadingAlbums(false);
+      setLoadingFolders(false);
     }
   };
 
@@ -122,7 +122,7 @@ export default function Home() {
     setError('');
     setSuccess('');
     setVideos([]);
-    setSelectedAlbum(null);
+    setSelectedFolder(null);
 
     try {
       // API request to get all user videos
@@ -179,8 +179,8 @@ export default function Home() {
       return;
     }
     
-    if (!selectedAlbum) {
-      setError('Please select an album first');
+    if (!selectedFolder) {
+      setError('Please select a folder first');
       return;
     }
 
@@ -189,14 +189,14 @@ export default function Home() {
     setSuccess('');
 
     try {
-      // Extract album ID from URI (format: /albums/12345678)
-      const albumId = selectedAlbum.uri.split('/').pop();
-      if (!albumId) {
-        throw new Error('Invalid album ID');
+      // Extract folder ID from URI (format: /folders/12345678)
+      const folderId = selectedFolder.uri.split('/').pop();
+      if (!folderId) {
+        throw new Error('Invalid folder ID');
       }
 
       // API request to Vimeo
-      const response = await fetch(`https://api.vimeo.com/me/albums/${albumId}/videos`, {
+      const response = await fetch(`https://api.vimeo.com/me/folders/${folderId}/videos`, {
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Accept': 'application/vnd.vimeo.*+json;version=3.4'
@@ -207,7 +207,7 @@ export default function Home() {
         if (response.status === 401) {
           throw new Error('Invalid API token. Please check your credentials.');
         } else if (response.status === 404) {
-          throw new Error('Album not found. Please check the album ID.');
+          throw new Error('Folder not found. Please check the folder ID.');
         } else if (response.status === 429) {
           throw new Error('API rate limit exceeded. Please try again later.');
         } else {
@@ -225,7 +225,7 @@ export default function Home() {
       }));
 
       setVideos(videoList);
-      setSuccess(`Successfully fetched ${videoList.length} videos from album "${selectedAlbum.name}"`);
+      setSuccess(`Successfully fetched ${videoList.length} videos from folder "${selectedFolder.name}"`);
       toast({
         title: "Success",
         description: `Fetched ${videoList.length} videos successfully`,
@@ -267,8 +267,8 @@ export default function Home() {
       // Generate Excel file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       // Create filename based on source
-      const albumId = selectedAlbum?.uri.split('/').pop();
-      const filename = albumId ? `vimeo_videos_album_${albumId}_${timestamp}.xlsx` : `vimeo_all_videos_${timestamp}.xlsx`;
+      const folderId = selectedFolder?.uri.split('/').pop();
+      const filename = folderId ? `vimeo_videos_folder_${folderId}_${timestamp}.xlsx` : `vimeo_all_videos_${timestamp}.xlsx`;
       
       // Download file
       (window as any).XLSX.writeFile(workbook, filename);
@@ -359,13 +359,13 @@ export default function Home() {
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  onClick={fetchAlbums}
-                  disabled={loadingAlbums || !apiToken.trim()}
+                  onClick={fetchFolders}
+                  disabled={loadingFolders || !apiToken.trim()}
                   variant="outline"
                   className="w-full"
-                  data-testid="button-load-albums"
+                  data-testid="button-load-folders"
                 >
-                  {loadingAlbums ? (
+                  {loadingFolders ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
                       Loading...
@@ -373,7 +373,7 @@ export default function Home() {
                   ) : (
                     <>
                       <Folder className="h-4 w-4 mr-2" />
-                      Load Albums
+                      Load Folders
                     </>
                   )}
                 </Button>
@@ -398,32 +398,32 @@ export default function Home() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Load albums OR load all your videos directly (if you don't use albums)
+                Load folders OR load all your videos directly (if you don't use folders)
               </p>
             </div>
 
-            {/* Album Selection */}
-            {albums.length > 0 && (
+            {/* Folder Selection */}
+            {folders.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="album-select">Select Album</Label>
+                <Label htmlFor="folder-select">Select Folder</Label>
                 <Select onValueChange={(value) => {
-                  const album = albums.find(a => a.uri === value);
-                  setSelectedAlbum(album || null);
-                  setVideos([]); // Clear videos when album changes
+                  const folder = folders.find(f => f.uri === value);
+                  setSelectedFolder(folder || null);
+                  setVideos([]); // Clear videos when folder changes
                   setError('');
                   setSuccess('');
-                }} data-testid="select-album">
+                }} data-testid="select-folder">
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose an album to export videos from" />
+                    <SelectValue placeholder="Choose a folder to export videos from" />
                   </SelectTrigger>
                   <SelectContent>
-                    {albums.map((album) => (
-                      <SelectItem key={album.uri} value={album.uri} data-testid={`album-option-${album.uri.split('/').pop()}`}>
+                    {folders.map((folder) => (
+                      <SelectItem key={folder.uri} value={folder.uri} data-testid={`folder-option-${folder.uri.split('/').pop()}`}>
                         <div className="flex flex-col">
-                          <span className="font-medium">{album.name}</span>
-                          {album.description && (
+                          <span className="font-medium">{folder.name}</span>
+                          {folder.description && (
                             <span className="text-xs text-gray-500 truncate max-w-60">
-                              {album.description}
+                              {folder.description}
                             </span>
                           )}
                         </div>
@@ -432,13 +432,13 @@ export default function Home() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  {selectedAlbum ? `Selected: ${selectedAlbum.name}` : 'Select an album to continue'}
+                  {selectedFolder ? `Selected: ${selectedFolder.name}` : 'Select a folder to continue'}
                 </p>
               </div>
             )}
 
             {/* Fetch Videos Button */}
-            {selectedAlbum && (
+            {selectedFolder && (
               <Button
                 onClick={fetchVideos}
                 disabled={loading}
@@ -453,7 +453,7 @@ export default function Home() {
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Fetch Videos from "{selectedAlbum.name}"
+                    Fetch Videos from "{selectedFolder.name}"
                   </>
                 )}
               </Button>
@@ -570,17 +570,17 @@ export default function Home() {
               <li>
                 <strong>Important:</strong> Make sure your token has at least these scopes:
                 <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                  <li><code className="bg-blue-100 px-1 rounded text-xs">private</code> - to access your personal albums</li>
+                  <li><code className="bg-blue-100 px-1 rounded text-xs">private</code> - to access your personal folders</li>
                   <li><code className="bg-blue-100 px-1 rounded text-xs">public</code> - to access public content</li>
                   <li><code className="bg-blue-100 px-1 rounded text-xs">video_files</code> - to access download links (optional)</li>
                 </ul>
               </li>
               <li>Enter your API token and choose one of two options:</li>
               <li className="ml-4">
-                <strong>Option A:</strong> Click "Load Albums" → Select an album → Click "Fetch Videos"
+                <strong>Option A:</strong> Click "Load Folders" → Select a folder → Click "Fetch Videos"
               </li>
               <li className="ml-4">
-                <strong>Option B:</strong> Click "Load All Videos" to get all your videos directly (no albums needed)
+                <strong>Option B:</strong> Click "Load All Videos" to get all your videos directly (no folders needed)
               </li>
               <li>Review the video list and click "Export to Excel" to download the data</li>
             </ol>
