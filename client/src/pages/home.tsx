@@ -86,11 +86,17 @@ export default function Home() {
 
       const data: VimeoAlbumsApiResponse = await response.json();
       setAlbums(data.data);
-      setSuccess(`Successfully loaded ${data.data.length} albums from your account`);
-      toast({
-        title: "Success",
-        description: `Loaded ${data.data.length} albums successfully`,
-      });
+      
+      if (data.data.length === 0) {
+        setSuccess('API connection successful, but no albums found. This might be because:');
+        setError('• Your API token may need additional permissions (scopes) to access albums\n• You may not have any albums created in your Vimeo account\n• Check that your token has "private" scope for accessing personal content');
+      } else {
+        setSuccess(`Successfully loaded ${data.data.length} albums from your account`);
+        toast({
+          title: "Success",
+          description: `Loaded ${data.data.length} albums successfully`,
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
@@ -283,6 +289,8 @@ export default function Home() {
                 <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                   Vimeo Developer
                 </a>
+                <br />
+                <strong>Important:</strong> Your token needs "private" scope to access albums
               </p>
             </div>
 
@@ -375,7 +383,9 @@ export default function Home() {
         {error && (
           <Alert variant="destructive" className="mb-6" data-testid="alert-error">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              <div className="whitespace-pre-line">{error}</div>
+            </AlertDescription>
           </Alert>
         )}
 
@@ -469,10 +479,19 @@ export default function Home() {
             </h3>
             <ol className="text-blue-800 space-y-2 list-decimal list-inside text-sm">
               <li>
-                Obtain your Vimeo API token from the{" "}
+                Create a Vimeo app at{" "}
                 <a href="https://developer.vimeo.com/apps" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
                   Vimeo Developer Portal
                 </a>
+                {" "}and generate a Personal Access Token
+              </li>
+              <li>
+                <strong>Important:</strong> Make sure your token has at least these scopes:
+                <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                  <li><code className="bg-blue-100 px-1 rounded text-xs">private</code> - to access your personal albums</li>
+                  <li><code className="bg-blue-100 px-1 rounded text-xs">public</code> - to access public content</li>
+                  <li><code className="bg-blue-100 px-1 rounded text-xs">video_files</code> - to access download links (optional)</li>
+                </ul>
               </li>
               <li>Enter your API token and click "Load My Albums" to fetch your album list</li>
               <li>Select the album you want to export from the dropdown menu</li>
