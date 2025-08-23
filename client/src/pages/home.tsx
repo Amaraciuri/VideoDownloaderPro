@@ -5,13 +5,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info } from "lucide-react";
+import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder } from "lucide-react";
 
 interface VimeoVideo {
   title: string;
   link: string;
   downloadLink: string;
+}
+
+interface VimeoAlbum {
+  uri: string;
+  name: string;
+  description: string;
+  privacy: {
+    view: string;
+  };
 }
 
 interface VimeoApiResponse {
@@ -24,15 +34,75 @@ interface VimeoApiResponse {
   }>;
 }
 
+interface VimeoAlbumsApiResponse {
+  data: VimeoAlbum[];
+}
+
 export default function Home() {
   const [apiToken, setApiToken] = useState('');
-  const [albumId, setAlbumId] = useState('');
+  const [albums, setAlbums] = useState<VimeoAlbum[]>([]);
+  const [selectedAlbum, setSelectedAlbum] = useState<VimeoAlbum | null>(null);
   const [videos, setVideos] = useState<VimeoVideo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAlbums, setLoadingAlbums] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showToken, setShowToken] = useState(false);
   const { toast } = useToast();
+
+  // Fetch albums from Vimeo API
+  const fetchAlbums = async () => {
+    // Input validation
+    if (!apiToken.trim()) {
+      setError('Please enter your Vimeo API token first');
+      return;
+    }
+
+    setLoadingAlbums(true);
+    setError('');
+    setSuccess('');
+    setAlbums([]);
+    setSelectedAlbum(null);
+    setVideos([]);
+
+    try {
+      // API request to fetch user's albums
+      const response = await fetch('https://api.vimeo.com/me/albums', {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid API token. Please check your credentials.');
+        } else if (response.status === 429) {
+          throw new Error('API rate limit exceeded. Please try again later.');
+        } else {
+          throw new Error(`Failed to fetch albums: ${response.status}`);
+        }
+      }
+
+      const data: VimeoAlbumsApiResponse = await response.json();
+      setAlbums(data.data);
+      setSuccess(`Successfully loaded ${data.data.length} albums from your account`);
+      toast({
+        title: "Success",
+        description: `Loaded ${data.data.length} albums successfully`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoadingAlbums(false);
+    }
+  };
 
   // Fetch videos from Vimeo API
   const fetchVideos = async () => {
@@ -42,8 +112,8 @@ export default function Home() {
       return;
     }
     
-    if (!albumId.trim() || !/^\d+$/.test(albumId.trim())) {
-      setError('Please enter a valid numeric album ID');
+    if (!selectedAlbum) {
+      setError('Please select an album first');
       return;
     }
 
@@ -52,6 +122,12 @@ export default function Home() {
     setSuccess('');
 
     try {
+      // Extract album ID from URI (format: /albums/12345678)
+      const albumId = selectedAlbum.uri.split('/').pop();
+      if (!albumId) {
+        throw new Error('Invalid album ID');
+      }
+
       // API request to Vimeo
       const response = await fetch(`https://api.vimeo.com/me/albums/${albumId}/videos`, {
         headers: {
@@ -82,7 +158,7 @@ export default function Home() {
       }));
 
       setVideos(videoList);
-      setSuccess(`Successfully fetched ${videoList.length} videos from album ${albumId}`);
+      setSuccess(`Successfully fetched ${videoList.length} videos from album "${selectedAlbum.name}"`);
       toast({
         title: "Success",
         description: `Fetched ${videoList.length} videos successfully`,
@@ -123,6 +199,8 @@ export default function Home() {
 
       // Generate Excel file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      // Extract album ID from URI for filename
+      const albumId = selectedAlbum?.uri.split('/').pop() || 'unknown';
       const filename = `vimeo_videos_${albumId}_${timestamp}.xlsx`;
       
       // Download file
@@ -153,7 +231,7 @@ export default function Home() {
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Export video titles and links from your Vimeo albums to Excel files. 
-            Enter your API token and album ID to get started.
+            Enter your API token, select an album, and export to Excel with just a few clicks.
           </p>
         </div>
 
@@ -208,41 +286,88 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Album ID Input */}
+            {/* Load Albums Button */}
             <div className="space-y-2">
-              <Label htmlFor="album-id">Album/Folder ID</Label>
-              <Input
-                id="album-id"
-                type="text"
-                value={albumId}
-                onChange={(e) => setAlbumId(e.target.value)}
-                placeholder="Enter numeric album ID (e.g., 12345678)"
-                data-testid="input-album-id"
-              />
+              <Button
+                onClick={fetchAlbums}
+                disabled={loadingAlbums || !apiToken.trim()}
+                variant="outline"
+                className="w-full"
+                data-testid="button-load-albums"
+              >
+                {loadingAlbums ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                    Loading Albums...
+                  </>
+                ) : (
+                  <>
+                    <Folder className="h-4 w-4 mr-2" />
+                    Load My Albums
+                  </>
+                )}
+              </Button>
               <p className="text-xs text-gray-500">
-                Find album ID in your Vimeo album URL or via the Vimeo API
+                Click to fetch all your albums after entering your API token
               </p>
             </div>
 
-            {/* Fetch Button */}
-            <Button
-              onClick={fetchVideos}
-              disabled={loading}
-              className="w-full"
-              data-testid="button-fetch-videos"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Fetching Videos...
-                </>
-              ) : (
-                <>
-                  <Download className="h-4 w-4 mr-2" />
-                  Fetch Videos
-                </>
-              )}
-            </Button>
+            {/* Album Selection */}
+            {albums.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="album-select">Select Album</Label>
+                <Select onValueChange={(value) => {
+                  const album = albums.find(a => a.uri === value);
+                  setSelectedAlbum(album || null);
+                  setVideos([]); // Clear videos when album changes
+                  setError('');
+                  setSuccess('');
+                }} data-testid="select-album">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an album to export videos from" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {albums.map((album) => (
+                      <SelectItem key={album.uri} value={album.uri} data-testid={`album-option-${album.uri.split('/').pop()}`}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{album.name}</span>
+                          {album.description && (
+                            <span className="text-xs text-gray-500 truncate max-w-60">
+                              {album.description}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  {selectedAlbum ? `Selected: ${selectedAlbum.name}` : 'Select an album to continue'}
+                </p>
+              </div>
+            )}
+
+            {/* Fetch Videos Button */}
+            {selectedAlbum && (
+              <Button
+                onClick={fetchVideos}
+                disabled={loading}
+                className="w-full"
+                data-testid="button-fetch-videos"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Fetching Videos...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Fetch Videos from "{selectedAlbum.name}"
+                  </>
+                )}
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -349,8 +474,9 @@ export default function Home() {
                   Vimeo Developer Portal
                 </a>
               </li>
-              <li>Find your album ID from the Vimeo album URL (the numbers at the end)</li>
-              <li>Enter both values in the form above and click "Fetch Videos"</li>
+              <li>Enter your API token and click "Load My Albums" to fetch your album list</li>
+              <li>Select the album you want to export from the dropdown menu</li>
+              <li>Click "Fetch Videos" to load all videos from the selected album</li>
               <li>Review the video list and click "Export to Excel" to download the data</li>
             </ol>
           </AlertDescription>
