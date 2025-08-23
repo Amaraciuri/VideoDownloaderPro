@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check, Sparkles, Loader2 } from "lucide-react";
+import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check, Sparkles, Loader2, Lock, Unlock } from "lucide-react";
 
 interface VimeoVideo {
   title: string;
@@ -69,6 +70,9 @@ export default function Home() {
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
   const [bulkAiProcessing, setBulkAiProcessing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{processed: number, total: number, errors: number}>({processed: 0, total: 0, errors: 0});
+  const [aiUnlocked, setAiUnlocked] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const { toast } = useToast();
 
   // Copy link to clipboard
@@ -180,6 +184,25 @@ export default function Home() {
         const newSet = new Set(prev);
         newSet.delete(video.videoId!);
         return newSet;
+      });
+    }
+  };
+
+  // Unlock AI functions with password
+  const unlockAi = () => {
+    if (unlockPassword === 'MG2025') {
+      setAiUnlocked(true);
+      setShowUnlockDialog(false);
+      setUnlockPassword('');
+      toast({
+        title: "AI Sbloccata",
+        description: "Funzioni AI attivate con successo!",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Password Errata",
+        description: "La password inserita non è corretta.",
       });
     }
   };
@@ -787,25 +810,81 @@ export default function Home() {
                   Video Results ({videos.length} videos)
                 </CardTitle>
                 <div className="flex gap-2">
-                  <Button
-                    onClick={generateAllAiTitles}
-                    disabled={bulkAiProcessing || videos.filter(v => v.videoId && v.thumbnailUrl && !v.aiTitle).length === 0}
-                    variant="outline"
-                    className="bg-purple-50 hover:bg-purple-100 border-purple-200"
-                    data-testid="button-generate-all-ai-titles"
-                  >
-                    {bulkAiProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generando... ({bulkProgress.processed}/{bulkProgress.total})
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Genera Tutti i Titoli AI
-                      </>
-                    )}
-                  </Button>
+                  {!aiUnlocked ? (
+                    <Dialog open={showUnlockDialog} onOpenChange={setShowUnlockDialog}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="bg-amber-50 hover:bg-amber-100 border-amber-200"
+                          data-testid="button-unlock-ai"
+                        >
+                          <Lock className="h-4 w-4 mr-2" />
+                          Sblocca AI
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md" data-testid="dialog-unlock-ai">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <Lock className="h-5 w-5" />
+                            Sblocca Funzioni AI
+                          </DialogTitle>
+                          <DialogDescription>
+                            Inserisci la password per accedere alle funzioni AI protette.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="unlock-password">Password</Label>
+                            <Input
+                              id="unlock-password"
+                              type="password"
+                              value={unlockPassword}
+                              onChange={(e) => setUnlockPassword(e.target.value)}
+                              placeholder="Inserisci la password"
+                              onKeyDown={(e) => e.key === 'Enter' && unlockAi()}
+                              data-testid="input-unlock-password"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button onClick={unlockAi} className="flex-1" data-testid="button-confirm-unlock">
+                              <Unlock className="h-4 w-4 mr-2" />
+                              Sblocca
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => {
+                                setShowUnlockDialog(false);
+                                setUnlockPassword('');
+                              }}
+                              data-testid="button-cancel-unlock"
+                            >
+                              Annulla
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  ) : (
+                    <Button
+                      onClick={generateAllAiTitles}
+                      disabled={bulkAiProcessing || videos.filter(v => v.videoId && v.thumbnailUrl && !v.aiTitle).length === 0}
+                      variant="outline"
+                      className="bg-purple-50 hover:bg-purple-100 border-purple-200"
+                      data-testid="button-generate-all-ai-titles"
+                    >
+                      {bulkAiProcessing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generando... ({bulkProgress.processed}/{bulkProgress.total})
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Genera Tutti i Titoli AI
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button
                     onClick={exportToExcel}
                     className="bg-green-600 hover:bg-green-700"
@@ -816,6 +895,15 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
+              {!aiUnlocked && (
+                <Alert className="mt-4 border-amber-200 bg-amber-50">
+                  <Lock className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    <p className="font-medium mb-1">Funzioni AI Protette</p>
+                    <p className="text-sm">Le funzioni AI sono protette da password. Clicca "Sblocca AI" per accedere alla generazione automatica dei titoli.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
               {bulkAiProcessing && (
                 <div className="mt-4 space-y-2">
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -882,18 +970,32 @@ export default function Home() {
                                 )}
                               </Button>
                             </div>
-                          ) : (
+                          ) : aiUnlocked ? (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => extractAiTitle(video)}
-                              disabled={!video.thumbnailUrl}
+                              disabled={!video.thumbnailUrl || aiAnalyzing.has(video.videoId!)}
                               className="flex items-center gap-1 h-8 px-2"
                               data-testid={`button-ai-title-${index}`}
                             >
-                              <Sparkles className="h-3 w-3" />
-                              <span className="text-xs">AI Title</span>
+                              {aiAnalyzing.has(video.videoId!) ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span className="text-xs">Generando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-3 w-3" />
+                                  <span className="text-xs">AI Title</span>
+                                </>
+                              )}
                             </Button>
+                          ) : (
+                            <div className="flex items-center gap-1 text-gray-400 text-xs">
+                              <Lock className="h-3 w-3" />
+                              <span>AI Bloccata</span>
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>
