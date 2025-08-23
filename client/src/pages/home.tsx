@@ -76,9 +76,11 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
-  const [provider, setProvider] = useState<'vimeo' | 'bunny'>('vimeo');
+  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream'>('vimeo');
   const [bunnyApiKey, setBunnyApiKey] = useState('');
   const [bunnyStorageZone, setBunnyStorageZone] = useState('');
+  const [bunnyStreamApiKey, setBunnyStreamApiKey] = useState('');
+  const [bunnyLibraryId, setBunnyLibraryId] = useState('');
   const { toast } = useToast();
 
   // Apply filters when search query or date filter changes
@@ -475,10 +477,90 @@ export default function Home() {
     }
   };
 
+  // Fetch videos from Bunny.net Stream API
+  const fetchBunnyStreamVideos = async () => {
+    if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
+      setError('Please enter Bunny.net Stream API key and Library ID');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setAllVideosLoaded([]);
+    setSelectedFolder(null);
+
+    try {
+      // Bunny.net Stream API endpoint
+      const url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'AccessKey': bunnyStreamApiKey,
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid Bunny.net Stream API key. Please check your credentials.');
+        } else if (response.status === 404) {
+          throw new Error('Library not found. Please check the Library ID.');
+        } else {
+          throw new Error(`Bunny.net Stream API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our video format
+      const videoList: VimeoVideo[] = data.items.map((video: any) => ({
+        title: video.title || 'Untitled Video',
+        link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
+        downloadLink: video.mp4Url || null,
+        videoId: video.guid,
+        thumbnailUrl: video.thumbnailUrl
+      }));
+
+      // Sort videos by title
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
+      setVideos(videosWithAiTitles);
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from Bunny.net Stream`);
+      toast({
+        title: "Success",
+        description: `Fetched ${sortedVideoList.length} videos successfully from Bunny.net Stream`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch all videos from user account (not from specific album)
   const fetchAllVideos = async () => {
     if (provider === 'bunny') {
       fetchBunnyVideos();
+      return;
+    }
+    
+    if (provider === 'bunny-stream') {
+      fetchBunnyStreamVideos();
       return;
     }
 
@@ -797,7 +879,7 @@ export default function Home() {
             {/* Provider Selection */}
             <div className="space-y-2">
               <Label htmlFor="provider-select">Video Provider</Label>
-              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny') => {
+              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny' | 'bunny-stream') => {
                 setProvider(value);
                 // Clear data when switching providers
                 setVideos([]);
@@ -812,7 +894,8 @@ export default function Home() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="vimeo">Vimeo</SelectItem>
-                  <SelectItem value="bunny">Bunny.net CDN</SelectItem>
+                  <SelectItem value="bunny">Bunny.net Storage</SelectItem>
+                  <SelectItem value="bunny-stream">Bunny.net Stream</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -856,7 +939,7 @@ export default function Home() {
               </>
             )}
 
-            {/* Bunny.net Configuration */}
+            {/* Bunny.net Storage Configuration */}
             {provider === 'bunny' && (
               <>
                 <div className="space-y-2">
@@ -901,6 +984,56 @@ export default function Home() {
                     </a>
                     <br />
                     Storage zone is where your videos are stored
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Bunny.net Stream Configuration */}
+            {provider === 'bunny-stream' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="bunny-stream-api-key">Bunny.net Stream API Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="bunny-stream-api-key"
+                      type={showToken ? "text" : "password"}
+                      value={bunnyStreamApiKey}
+                      onChange={(e) => setBunnyStreamApiKey(e.target.value)}
+                      placeholder="Enter your Bunny.net Stream API key"
+                      className="pr-10"
+                      data-testid="input-bunny-stream-api-key"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      data-testid="button-toggle-bunny-stream-token-visibility"
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="bunny-library-id">Video Library ID</Label>
+                  <Input
+                    id="bunny-library-id"
+                    type="text"
+                    value={bunnyLibraryId}
+                    onChange={(e) => setBunnyLibraryId(e.target.value)}
+                    placeholder="Enter your Bunny.net Video Library ID"
+                    data-testid="input-bunny-library-id"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Get your Stream API key and Library ID from{" "}
+                    <a href="https://panel.bunny.net/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Bunny.net Panel → Stream
+                    </a>
+                    <br />
+                    Library ID is where your streaming videos are stored
                   </p>
                 </div>
               </>
@@ -958,7 +1091,7 @@ export default function Home() {
               </>
             )}
 
-            {/* Bunny.net Load Button */}
+            {/* Bunny.net Storage Load Button */}
             {provider === 'bunny' && (
               <div className="space-y-2">
                 <Button
@@ -975,12 +1108,39 @@ export default function Home() {
                   ) : (
                     <>
                       <Download className="h-4 w-4 mr-2" />
-                      Load Videos from Bunny.net
+                      Load Videos from Bunny.net Storage
                     </>
                   )}
                 </Button>
                 <p className="text-xs text-gray-500">
                   Load all videos from your Bunny.net storage zone
+                </p>
+              </div>
+            )}
+
+            {/* Bunny.net Stream Load Button */}
+            {provider === 'bunny-stream' && (
+              <div className="space-y-2">
+                <Button
+                  onClick={fetchAllVideos}
+                  disabled={loading || !bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()}
+                  className="w-full"
+                  data-testid="button-load-bunny-stream-videos"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Loading Videos...
+                    </>
+                  ) : (
+                    <>
+                      <Video className="h-4 w-4 mr-2" />
+                      Load Videos from Bunny.net Stream
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Load all videos from your Bunny.net Stream library
                 </p>
               </div>
             )}
