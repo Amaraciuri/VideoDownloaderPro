@@ -715,21 +715,12 @@ export default function Home() {
                               variant="outline"
                               size="sm"
                               onClick={() => extractAiTitle(video)}
-                              disabled={aiAnalyzing.has(video.videoId || '') || !video.thumbnailUrl}
+                              disabled={!video.thumbnailUrl}
                               className="flex items-center gap-1 h-8 px-2"
                               data-testid={`button-ai-title-${index}`}
                             >
-                              {aiAnalyzing.has(video.videoId || '') ? (
-                                <>
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                  <span className="text-xs">Analisi...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="h-3 w-3" />
-                                  <span className="text-xs">AI Title</span>
-                                </>
-                              )}
+                              <Sparkles className="h-3 w-3" />
+                              <span className="text-xs">AI Title</span>
                             </Button>
                           )}
                         </TableCell>
