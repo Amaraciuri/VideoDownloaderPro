@@ -110,6 +110,67 @@ export default function Home() {
     }
   };
 
+  // Fetch all videos from user account (not from specific album)
+  const fetchAllVideos = async () => {
+    // Input validation
+    if (!apiToken.trim()) {
+      setError('Please enter your Vimeo API token');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setSelectedAlbum(null);
+
+    try {
+      // API request to get all user videos
+      const response = await fetch('https://api.vimeo.com/me/videos', {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid API token. Please check your credentials.');
+        } else if (response.status === 429) {
+          throw new Error('API rate limit exceeded. Please try again later.');
+        } else {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+      }
+
+      const data: VimeoApiResponse = await response.json();
+      
+      // Extract video information
+      const videoList: VimeoVideo[] = data.data.map(video => ({
+        title: video.name,
+        link: video.link,
+        downloadLink: video.download ? video.download[0]?.link : 'Not available'
+      }));
+
+      setVideos(videoList);
+      setSuccess(`Successfully fetched ${videoList.length} videos from your account`);
+      toast({
+        title: "Success",
+        description: `Fetched ${videoList.length} videos successfully`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch videos from Vimeo API
   const fetchVideos = async () => {
     // Input validation
@@ -205,9 +266,9 @@ export default function Home() {
 
       // Generate Excel file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      // Extract album ID from URI for filename
-      const albumId = selectedAlbum?.uri.split('/').pop() || 'unknown';
-      const filename = `vimeo_videos_${albumId}_${timestamp}.xlsx`;
+      // Create filename based on source
+      const albumId = selectedAlbum?.uri.split('/').pop();
+      const filename = albumId ? `vimeo_videos_album_${albumId}_${timestamp}.xlsx` : `vimeo_all_videos_${timestamp}.xlsx`;
       
       // Download file
       (window as any).XLSX.writeFile(workbook, filename);
@@ -296,27 +357,48 @@ export default function Home() {
 
             {/* Load Albums Button */}
             <div className="space-y-2">
-              <Button
-                onClick={fetchAlbums}
-                disabled={loadingAlbums || !apiToken.trim()}
-                variant="outline"
-                className="w-full"
-                data-testid="button-load-albums"
-              >
-                {loadingAlbums ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                    Loading Albums...
-                  </>
-                ) : (
-                  <>
-                    <Folder className="h-4 w-4 mr-2" />
-                    Load My Albums
-                  </>
-                )}
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={fetchAlbums}
+                  disabled={loadingAlbums || !apiToken.trim()}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-load-albums"
+                >
+                  {loadingAlbums ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Folder className="h-4 w-4 mr-2" />
+                      Load Albums
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={fetchAllVideos}
+                  disabled={loading || !apiToken.trim()}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-load-all-videos"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Video className="h-4 w-4 mr-2" />
+                      Load All Videos
+                    </>
+                  )}
+                </Button>
+              </div>
               <p className="text-xs text-gray-500">
-                Click to fetch all your albums after entering your API token
+                Load albums OR load all your videos directly (if you don't use albums)
               </p>
             </div>
 
@@ -493,9 +575,13 @@ export default function Home() {
                   <li><code className="bg-blue-100 px-1 rounded text-xs">video_files</code> - to access download links (optional)</li>
                 </ul>
               </li>
-              <li>Enter your API token and click "Load My Albums" to fetch your album list</li>
-              <li>Select the album you want to export from the dropdown menu</li>
-              <li>Click "Fetch Videos" to load all videos from the selected album</li>
+              <li>Enter your API token and choose one of two options:</li>
+              <li className="ml-4">
+                <strong>Option A:</strong> Click "Load Albums" → Select an album → Click "Fetch Videos"
+              </li>
+              <li className="ml-4">
+                <strong>Option B:</strong> Click "Load All Videos" to get all your videos directly (no albums needed)
+              </li>
               <li>Review the video list and click "Export to Excel" to download the data</li>
             </ol>
           </AlertDescription>
