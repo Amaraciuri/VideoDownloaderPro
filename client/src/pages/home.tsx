@@ -72,6 +72,8 @@ export default function Home() {
   const [bulkProgress, setBulkProgress] = useState<{processed: number, total: number, errors: number}>({processed: 0, total: 0, errors: 0});
   const [aiUnlocked, setAiUnlocked] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
+  const [userOpenAiKey, setUserOpenAiKey] = useState('');
+  const [unlockMethod, setUnlockMethod] = useState<'password' | 'api-key'>('password');
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,7 +171,8 @@ export default function Home() {
         body: JSON.stringify({
           videoId: video.videoId,
           thumbnailUrl: video.thumbnailUrl,
-          originalTitle: video.title
+          originalTitle: video.title,
+          userApiKey: userOpenAiKey || undefined
         }),
       });
 
@@ -206,22 +209,40 @@ export default function Home() {
     }
   };
 
-  // Unlock AI functions with password
+  // Unlock AI functions with password or personal API key
   const unlockAi = () => {
-    if (unlockPassword === 'MG2025') {
-      setAiUnlocked(true);
-      setShowUnlockDialog(false);
-      setUnlockPassword('');
-      toast({
-        title: "AI Sbloccata",
-        description: "Funzioni AI attivate con successo!",
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Password Errata",
-        description: "La password inserita non è corretta.",
-      });
+    if (unlockMethod === 'password') {
+      if (unlockPassword === 'MG2025') {
+        setAiUnlocked(true);
+        setShowUnlockDialog(false);
+        setUnlockPassword('');
+        toast({
+          title: "AI Sbloccata",
+          description: "Funzioni AI attivate con successo!",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Password Errata",
+          description: "La password inserita non è corretta.",
+        });
+      }
+    } else if (unlockMethod === 'api-key') {
+      if (userOpenAiKey.trim().startsWith('sk-')) {
+        setAiUnlocked(true);
+        setShowUnlockDialog(false);
+        setUserOpenAiKey('');
+        toast({
+          title: "AI Sbloccata",
+          description: "Funzioni AI attivate con la tua API key personale!",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "API Key Non Valida",
+          description: "Inserisci una API key OpenAI valida (inizia con 'sk-')",
+        });
+      }
     }
   };
 
@@ -252,7 +273,10 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ videos: videosPayload }),
+        body: JSON.stringify({ 
+          videos: videosPayload,
+          userApiKey: userOpenAiKey || undefined
+        }),
       });
 
       if (!response.ok) {
@@ -1703,29 +1727,108 @@ export default function Home() {
                           Sblocca AI
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-md" data-testid="dialog-unlock-ai">
+                      <DialogContent className="sm:max-w-lg" data-testid="dialog-unlock-ai">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
                             <Lock className="h-5 w-5" />
                             Sblocca Funzioni AI
                           </DialogTitle>
                           <DialogDescription>
-                            Inserisci la password per accedere alle funzioni AI protette.
+                            Scegli come sbloccare le funzioni AI: con password o con la tua API key OpenAI personale.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="unlock-password">Password</Label>
-                            <Input
-                              id="unlock-password"
-                              type="password"
-                              value={unlockPassword}
-                              onChange={(e) => setUnlockPassword(e.target.value)}
-                              placeholder="Inserisci la password"
-                              onKeyDown={(e) => e.key === 'Enter' && unlockAi()}
-                              data-testid="input-unlock-password"
-                            />
+                          {/* Unlock Method Selection */}
+                          <div className="space-y-3">
+                            <Label>Metodo di sblocco</Label>
+                            <div className="grid grid-cols-1 gap-3">
+                              <div 
+                                className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                                  unlockMethod === 'password' 
+                                    ? 'border-blue-500 bg-blue-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                onClick={() => setUnlockMethod('password')}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-4 h-4 rounded-full border-2 ${
+                                    unlockMethod === 'password' 
+                                      ? 'border-blue-500 bg-blue-500' 
+                                      : 'border-gray-300'
+                                  }`}>
+                                    {unlockMethod === 'password' && (
+                                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">Usa Password di Sistema</div>
+                                    <div className="text-sm text-gray-500">Utilizza il credito OpenAI del sistema</div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div 
+                                className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                                  unlockMethod === 'api-key' 
+                                    ? 'border-blue-500 bg-blue-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                onClick={() => setUnlockMethod('api-key')}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-4 h-4 rounded-full border-2 ${
+                                    unlockMethod === 'api-key' 
+                                      ? 'border-blue-500 bg-blue-500' 
+                                      : 'border-gray-300'
+                                  }`}>
+                                    {unlockMethod === 'api-key' && (
+                                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">Usa la Tua API Key OpenAI</div>
+                                    <div className="text-sm text-gray-500">Utilizza il tuo credito OpenAI personale</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Password Input */}
+                          {unlockMethod === 'password' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="unlock-password">Password</Label>
+                              <Input
+                                id="unlock-password"
+                                type="password"
+                                value={unlockPassword}
+                                onChange={(e) => setUnlockPassword(e.target.value)}
+                                placeholder="Inserisci la password"
+                                onKeyDown={(e) => e.key === 'Enter' && unlockAi()}
+                                data-testid="input-unlock-password"
+                              />
+                            </div>
+                          )}
+
+                          {/* API Key Input */}
+                          {unlockMethod === 'api-key' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="unlock-api-key">OpenAI API Key</Label>
+                              <Input
+                                id="unlock-api-key"
+                                type="password"
+                                value={userOpenAiKey}
+                                onChange={(e) => setUserOpenAiKey(e.target.value)}
+                                placeholder="sk-..."
+                                onKeyDown={(e) => e.key === 'Enter' && unlockAi()}
+                                data-testid="input-unlock-api-key"
+                              />
+                              <p className="text-xs text-gray-500">
+                                La tua API key viene utilizzata solo per questa sessione e non viene salvata.
+                              </p>
+                            </div>
+                          )}
+
                           <div className="flex gap-2">
                             <Button onClick={unlockAi} className="flex-1" data-testid="button-confirm-unlock">
                               <Unlock className="h-4 w-4 mr-2" />
@@ -1736,6 +1839,8 @@ export default function Home() {
                               onClick={() => {
                                 setShowUnlockDialog(false);
                                 setUnlockPassword('');
+                                setUserOpenAiKey('');
+                                setUnlockMethod('password');
                               }}
                               data-testid="button-cancel-unlock"
                             >

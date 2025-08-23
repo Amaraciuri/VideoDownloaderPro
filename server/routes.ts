@@ -14,14 +14,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI thumbnail analysis endpoint
   app.post("/api/analyze-thumbnail", async (req, res) => {
     try {
-      const { thumbnailUrl, originalTitle } = req.body;
+      const { thumbnailUrl, originalTitle, userApiKey } = req.body;
 
       if (!thumbnailUrl) {
         return res.status(400).json({ error: "Thumbnail URL is required" });
       }
 
+      // Use user's API key if provided, otherwise use system key
+      const aiClient = userApiKey 
+        ? new OpenAI({ apiKey: userApiKey })
+        : openai;
+
       // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      const response = await openai.chat.completions.create({
+      const response = await aiClient.chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
@@ -122,11 +127,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk AI thumbnail analysis endpoint
   app.post("/api/analyze-thumbnails-bulk", async (req, res) => {
     try {
-      const { videos } = req.body;
+      const { videos, userApiKey } = req.body;
 
       if (!Array.isArray(videos) || videos.length === 0) {
         return res.status(400).json({ error: "Videos array is required and must not be empty" });
       }
+
+      // Use user's API key if provided, otherwise use system key
+      const aiClient = userApiKey 
+        ? new OpenAI({ apiKey: userApiKey })
+        : openai;
 
       type BulkResult = {
         videoId: string;
@@ -174,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // Generate AI title using OpenAI
-            const response = await openai.chat.completions.create({
+            const response = await aiClient.chat.completions.create({
               model: "gpt-4o",
               messages: [
                 {

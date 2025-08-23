@@ -34,6 +34,9 @@ Preferred communication style: Simple, everyday language.
 - **User Model**: Basic user schema with username/password fields
 - **Storage Interface**: Abstracted storage layer with in-memory fallback
 - **Session Management**: Express sessions with PostgreSQL store
+- **AI Feature Protection**: Password-protected AI features with dual unlock methods:
+  - System password (MG2025) using server's OpenAI API key
+  - Personal OpenAI API key for users with their own credits
 
 ### Component Architecture
 - **Design System**: Shadcn/ui components with consistent styling
