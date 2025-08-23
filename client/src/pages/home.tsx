@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check, Sparkles, Loader2, Lock, Unlock } from "lucide-react";
+import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check, Sparkles, Loader2, Lock, Unlock, Search, Calendar } from "lucide-react";
 
 interface VimeoVideo {
   title: string;
@@ -73,7 +73,15 @@ export default function Home() {
   const [aiUnlocked, setAiUnlocked] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
   const { toast } = useToast();
+
+  // Apply filters when search query or date filter changes
+  useEffect(() => {
+    applyFilters();
+  }, [searchQuery, dateFilter, allVideosLoaded]);
 
   // Copy link to clipboard
   const copyToClipboard = async (link: string, videoTitle: string) => {
@@ -339,6 +347,49 @@ export default function Home() {
     }
   };
 
+  // Get date filter for API query
+  const getDateFilterParam = (filter: string) => {
+    const now = new Date();
+    switch (filter) {
+      case '1month':
+        const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        return oneMonthAgo.toISOString();
+      case '3months':
+        const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        return threeMonthsAgo.toISOString();
+      case '6months':
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        return sixMonthsAgo.toISOString();
+      case '1year':
+        const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        return oneYearAgo.toISOString();
+      default:
+        return null;
+    }
+  };
+
+  // Filter videos based on search query
+  const filterVideos = (videoList: VimeoVideo[], query: string) => {
+    let filtered = videoList;
+
+    // Filter by search query
+    if (query.trim()) {
+      filtered = filtered.filter(video => 
+        video.title.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    return filtered;
+  };
+
+  // Apply real-time search filters
+  const applyFilters = () => {
+    if (allVideosLoaded.length > 0) {
+      const filtered = filterVideos(allVideosLoaded, searchQuery);
+      setVideos(filtered);
+    }
+  };
+
   // Fetch all videos from user account (not from specific album)
   const fetchAllVideos = async () => {
     // Input validation
@@ -351,6 +402,7 @@ export default function Home() {
     setError('');
     setSuccess('');
     setVideos([]);
+    setAllVideosLoaded([]);
     setSelectedFolder(null);
 
     try {
@@ -360,11 +412,19 @@ export default function Home() {
       let hasMorePages = true;
       const perPage = 100;
 
+      // Build API URL with date filter if specified
+      const dateParam = getDateFilterParam(dateFilter);
+      const baseUrl = 'https://api.vimeo.com/me/videos';
+
       while (hasMorePages) {
         // Update success message to show progress
         setSuccess(`Fetching all your videos... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
         
-        const url = `https://api.vimeo.com/me/videos?per_page=${perPage}&page=${currentPage}`;
+        let url = `${baseUrl}?per_page=${perPage}&page=${currentPage}`;
+        if (dateParam) {
+          url += `&created_time=>=${dateParam}`;
+        }
+        
         const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${apiToken}`,
@@ -427,6 +487,7 @@ export default function Home() {
 
       // Load existing AI titles from database
       const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
       setVideos(videosWithAiTitles);
       setSuccess(`Successfully fetched ${sortedVideoList.length} videos from your account`);
       toast({
@@ -798,6 +859,103 @@ export default function Home() {
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">{success}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Search and Filters - Only show when videos are loaded via "Load All Videos" */}
+        {allVideosLoaded.length > 0 && (
+          <Card className="mb-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-gray-600" />
+                Ricerca e Filtri
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Search Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="search-videos">Cerca per nome</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="search-videos"
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Cerca video per titolo..."
+                      className="pl-10"
+                      data-testid="input-search-videos"
+                    />
+                  </div>
+                </div>
+
+                {/* Date Filter */}
+                <div className="space-y-2">
+                  <Label htmlFor="date-filter">Filtro per data</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter} data-testid="select-date-filter">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona periodo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutti i video</SelectItem>
+                      <SelectItem value="1month">Ultimo mese</SelectItem>
+                      <SelectItem value="3months">Ultimi 3 mesi</SelectItem>
+                      <SelectItem value="6months">Ultimi 6 mesi</SelectItem>
+                      <SelectItem value="1year">Ultimo anno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Refresh with new date filter */}
+                <div className="space-y-2">
+                  <Label>&nbsp;</Label>
+                  <Button
+                    onClick={fetchAllVideos}
+                    disabled={loading}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-apply-date-filter"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Caricando...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Applica Filtro Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Results Summary */}
+              <div className="flex items-center justify-between text-sm text-gray-600 pt-2 border-t">
+                <span>
+                  Mostrando {videos.length} di {allVideosLoaded.length} video
+                  {searchQuery && ` • Ricerca: "${searchQuery}"`}
+                  {dateFilter !== 'all' && ` • Periodo: ${
+                    dateFilter === '1month' ? 'Ultimo mese' :
+                    dateFilter === '3months' ? 'Ultimi 3 mesi' :
+                    dateFilter === '6months' ? 'Ultimi 6 mesi' :
+                    dateFilter === '1year' ? 'Ultimo anno' : ''
+                  }`}
+                </span>
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery('')}
+                    data-testid="button-clear-search"
+                  >
+                    Cancella ricerca
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Videos Table */}
