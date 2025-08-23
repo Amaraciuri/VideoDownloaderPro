@@ -7,12 +7,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check } from "lucide-react";
+import { Video, Shield, Download, Eye, EyeOff, ExternalLink, FileSpreadsheet, AlertCircle, CheckCircle, Info, Folder, Copy, Check, Sparkles, Loader2 } from "lucide-react";
 
 interface VimeoVideo {
   title: string;
   link: string;
   downloadLink: string;
+  thumbnailUrl?: string;
+  aiTitle?: string;
+  videoId?: string;
 }
 
 interface VimeoFolder {
@@ -28,6 +31,14 @@ interface VimeoApiResponse {
   data: Array<{
     name: string;
     link: string;
+    uri: string;
+    pictures?: {
+      sizes: Array<{
+        width: number;
+        height: number;
+        link: string;
+      }>;
+    };
     download?: Array<{
       link: string;
     }>;
@@ -55,6 +66,7 @@ export default function Home() {
   const [success, setSuccess] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [copiedLinks, setCopiedLinks] = useState<Set<string>>(new Set());
+  const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Copy link to clipboard
@@ -79,6 +91,64 @@ export default function Home() {
         variant: "destructive",
         title: "Errore",
         description: "Impossibile copiare il link. Prova a copiarlo manualmente.",
+      });
+    }
+  };
+
+  // AI title extraction from thumbnail
+  const extractAiTitle = async (video: VimeoVideo) => {
+    if (!video.videoId || !video.thumbnailUrl) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Thumbnail non disponibile per questo video",
+      });
+      return;
+    }
+
+    setAiAnalyzing(prev => new Set(Array.from(prev).concat([video.videoId!])));
+    
+    try {
+      const response = await fetch('/api/analyze-thumbnail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          thumbnailUrl: video.thumbnailUrl,
+          originalTitle: video.title
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Analisi AI fallita');
+      }
+
+      const data = await response.json();
+      
+      // Update the video with AI title
+      setVideos(prev => prev.map(v => 
+        v.videoId === video.videoId 
+          ? { ...v, aiTitle: data.aiTitle }
+          : v
+      ));
+
+      toast({
+        title: "Titolo AI Estratto",
+        description: `"${data.aiTitle}"`,
+      });
+
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Errore AI",
+        description: "Impossibile analizzare la thumbnail. Riprova.",
+      });
+    } finally {
+      setAiAnalyzing(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(video.videoId!);
+        return newSet;
       });
     }
   };
@@ -189,11 +259,22 @@ export default function Home() {
         const data: VimeoApiResponse = await response.json();
         
         // Extract video information from this page
-        const pageVideos: VimeoVideo[] = data.data.map(video => ({
-          title: video.name,
-          link: video.link,
-          downloadLink: video.download ? video.download[0]?.link : 'Not available'
-        }));
+        const pageVideos: VimeoVideo[] = data.data.map(video => {
+          // Extract video ID from URI (format: /videos/123456789)
+          const videoId = video.uri.split('/').pop() || '';
+          // Get best quality thumbnail
+          const thumbnailUrl = video.pictures?.sizes?.length 
+            ? video.pictures.sizes[video.pictures.sizes.length - 1].link 
+            : undefined;
+          
+          return {
+            title: video.name,
+            link: video.link,
+            downloadLink: video.download ? video.download[0]?.link : 'Not available',
+            videoId,
+            thumbnailUrl
+          };
+        });
         
         // Add to total collection
         allVideos = [...allVideos, ...pageVideos];
@@ -294,11 +375,22 @@ export default function Home() {
         const data: VimeoApiResponse = await response.json();
         
         // Extract video information from this page
-        const pageVideos: VimeoVideo[] = data.data.map(video => ({
-          title: video.name,
-          link: video.link,
-          downloadLink: video.download ? video.download[0]?.link : 'Not available'
-        }));
+        const pageVideos: VimeoVideo[] = data.data.map(video => {
+          // Extract video ID from URI (format: /videos/123456789)
+          const videoId = video.uri.split('/').pop() || '';
+          // Get best quality thumbnail
+          const thumbnailUrl = video.pictures?.sizes?.length 
+            ? video.pictures.sizes[video.pictures.sizes.length - 1].link 
+            : undefined;
+          
+          return {
+            title: video.name,
+            link: video.link,
+            downloadLink: video.download ? video.download[0]?.link : 'Not available',
+            videoId,
+            thumbnailUrl
+          };
+        });
         
         // Add to total collection
         allVideos = [...allVideos, ...pageVideos];
@@ -353,8 +445,8 @@ export default function Home() {
     try {
       // Create worksheet data
       const worksheetData = [
-        ['Video Title', 'Video Link', 'Download Link'],
-        ...videos.map(video => [video.title, video.link, video.downloadLink])
+        ['Titolo Originale', 'Titolo AI', 'Video Link', 'Download Link'],
+        ...videos.map(video => [video.title, video.aiTitle || '', video.link, video.downloadLink])
       ];
 
       // Create workbook and worksheet using SheetJS
@@ -602,7 +694,8 @@ export default function Home() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Video Title</TableHead>
+                      <TableHead>Titolo Originale</TableHead>
+                      <TableHead>Titolo AI</TableHead>
                       <TableHead>Video Link</TableHead>
                       <TableHead>Download Link</TableHead>
                       <TableHead>Azioni</TableHead>
@@ -613,6 +706,32 @@ export default function Home() {
                       <TableRow key={index} data-testid={`row-video-${index}`}>
                         <TableCell className="font-medium" data-testid={`text-title-${index}`}>
                           {video.title}
+                        </TableCell>
+                        <TableCell className="max-w-xs" data-testid={`text-ai-title-${index}`}>
+                          {video.aiTitle ? (
+                            <span className="text-green-700 font-medium">{video.aiTitle}</span>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => extractAiTitle(video)}
+                              disabled={aiAnalyzing.has(video.videoId || '') || !video.thumbnailUrl}
+                              className="flex items-center gap-1 h-8 px-2"
+                              data-testid={`button-ai-title-${index}`}
+                            >
+                              {aiAnalyzing.has(video.videoId || '') ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span className="text-xs">Analisi...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-3 w-3" />
+                                  <span className="text-xs">AI Title</span>
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </TableCell>
                         <TableCell>
                           <a 
