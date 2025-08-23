@@ -95,6 +95,34 @@ export default function Home() {
     }
   };
 
+  // Load existing AI titles from database
+  const loadExistingAiTitles = async (videoList: VimeoVideo[]) => {
+    const videoIds = videoList.map(v => v.videoId).filter(Boolean);
+    if (videoIds.length === 0) return videoList;
+
+    try {
+      const response = await fetch('/api/get-ai-titles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoIds }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return videoList.map(video => ({
+          ...video,
+          aiTitle: data.titles[video.videoId!] || video.aiTitle
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading existing AI titles:', err);
+    }
+    
+    return videoList;
+  };
+
   // AI title extraction from thumbnail
   const extractAiTitle = async (video: VimeoVideo) => {
     if (!video.videoId || !video.thumbnailUrl) {
@@ -115,6 +143,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          videoId: video.videoId,
           thumbnailUrl: video.thumbnailUrl,
           originalTitle: video.title
         }),
@@ -299,7 +328,9 @@ export default function Home() {
         });
       });
 
-      setVideos(sortedVideoList);
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setVideos(videosWithAiTitles);
       setSuccess(`Successfully fetched ${sortedVideoList.length} videos from your account`);
       toast({
         title: "Success",
@@ -416,7 +447,9 @@ export default function Home() {
         });
       });
 
-      setVideos(sortedVideoList);
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setVideos(videosWithAiTitles);
       setSuccess(`Successfully fetched ${sortedVideoList.length} videos from folder "${selectedFolder.name}"`);
       toast({
         title: "Success",
@@ -705,11 +738,41 @@ export default function Home() {
                     {videos.map((video, index) => (
                       <TableRow key={index} data-testid={`row-video-${index}`}>
                         <TableCell className="font-medium" data-testid={`text-title-${index}`}>
-                          {video.title}
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1">{video.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(video.title, video.title)}
+                              className="h-6 w-6 p-0 hover:bg-gray-100"
+                              data-testid={`button-copy-original-title-${index}`}
+                            >
+                              {copiedLinks.has(video.title) ? (
+                                <Check className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-xs" data-testid={`text-ai-title-${index}`}>
                           {video.aiTitle ? (
-                            <span className="text-green-700 font-medium">{video.aiTitle}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-green-700 font-medium flex-1">{video.aiTitle}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(video.aiTitle!, video.title + ' (AI Title)')}
+                                className="h-6 w-6 p-0 hover:bg-gray-100"
+                                data-testid={`button-copy-ai-title-${index}`}
+                              >
+                                {copiedLinks.has(video.aiTitle!) ? (
+                                  <Check className="h-3 w-3 text-green-600" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </div>
                           ) : (
                             <Button
                               variant="outline"
