@@ -81,6 +81,8 @@ export default function Home() {
   const [bunnyStorageZone, setBunnyStorageZone] = useState('');
   const [bunnyStreamApiKey, setBunnyStreamApiKey] = useState('');
   const [bunnyLibraryId, setBunnyLibraryId] = useState('');
+  const [bunnyCollections, setBunnyCollections] = useState<VimeoFolder[]>([]);
+  const [loadingBunnyCollections, setLoadingBunnyCollections] = useState(false);
   const { toast } = useToast();
 
   // Apply filters when search query or date filter changes
@@ -477,6 +479,66 @@ export default function Home() {
     }
   };
 
+  // Fetch collections from Bunny.net Stream API  
+  const fetchBunnyCollections = async () => {
+    if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
+      setError('Please enter Bunny.net Stream API key and Library ID first');
+      return;
+    }
+
+    setLoadingBunnyCollections(true);
+    setError('');
+    setSuccess('');
+    setBunnyCollections([]);
+
+    try {
+      const url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/collections`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'AccessKey': bunnyStreamApiKey,
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid Bunny.net Stream API key. Please check your credentials.');
+        } else if (response.status === 404) {
+          throw new Error('Library not found. Please check the Library ID.');
+        } else {
+          throw new Error(`Bunny.net Stream API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our folder format
+      const collections: VimeoFolder[] = data.items.map((collection: any) => ({
+        uri: collection.guid,
+        name: collection.name || 'Untitled Collection',
+        description: collection.description || '',
+        video_count: collection.videoCount || 0
+      }));
+
+      setBunnyCollections(collections);
+      setSuccess(`Found ${collections.length} collections in your Bunny.net Stream library`);
+      toast({
+        title: "Success",
+        description: `Found ${collections.length} collections`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoadingBunnyCollections(false);
+    }
+  };
+
   // Fetch videos from Bunny.net Stream API
   const fetchBunnyStreamVideos = async () => {
     if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
@@ -492,8 +554,11 @@ export default function Home() {
     setSelectedFolder(null);
 
     try {
-      // Bunny.net Stream API endpoint
-      const url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos`;
+      // Bunny.net Stream API endpoint - with collection filter if folder is selected
+      let url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos`;
+      if (selectedFolder) {
+        url += `?collection=${selectedFolder.uri}`;
+      }
       
       const response = await fetch(url, {
         headers: {
@@ -534,10 +599,15 @@ export default function Home() {
       const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
       setAllVideosLoaded(videosWithAiTitles);
       setVideos(videosWithAiTitles);
-      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from Bunny.net Stream`);
+      
+      const sourceText = selectedFolder 
+        ? `collection "${selectedFolder.name}"` 
+        : 'Bunny.net Stream library';
+      
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from ${sourceText}`);
       toast({
         title: "Success",
-        description: `Fetched ${sortedVideoList.length} videos successfully from Bunny.net Stream`,
+        description: `Fetched ${sortedVideoList.length} videos from ${sourceText}`,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -885,6 +955,7 @@ export default function Home() {
                 setVideos([]);
                 setAllVideosLoaded([]);
                 setFolders([]);
+                setBunnyCollections([]);
                 setSelectedFolder(null);
                 setError('');
                 setSuccess('');
@@ -1118,59 +1189,86 @@ export default function Home() {
               </div>
             )}
 
-            {/* Bunny.net Stream Load Button */}
+            {/* Bunny.net Stream Buttons */}
             {provider === 'bunny-stream' && (
-              <div className="space-y-2">
-                <Button
-                  onClick={fetchAllVideos}
-                  disabled={loading || !bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()}
-                  className="w-full"
-                  data-testid="button-load-bunny-stream-videos"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Loading Videos...
-                    </>
-                  ) : (
-                    <>
-                      <Video className="h-4 w-4 mr-2" />
-                      Load Videos from Bunny.net Stream
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-gray-500">
-                  Load all videos from your Bunny.net Stream library
-                </p>
-              </div>
+              <>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={fetchBunnyCollections}
+                      disabled={loadingBunnyCollections || !bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-bunny-collections"
+                    >
+                      {loadingBunnyCollections ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Folder className="h-4 w-4 mr-2" />
+                          Load Collections
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={fetchAllVideos}
+                      disabled={loading || !bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-bunny-stream-videos"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Video className="h-4 w-4 mr-2" />
+                          Load All Videos
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Load collections OR load all videos directly from your Bunny.net Stream library
+                  </p>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Folder Selection - Only for Vimeo */}
-        {provider === 'vimeo' && folders.length > 0 && (
+        {/* Folder/Collection Selection - For Vimeo and Bunny Stream */}
+        {((provider === 'vimeo' && folders.length > 0) || (provider === 'bunny-stream' && bunnyCollections.length > 0)) && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Folder className="h-5 w-5 text-gray-600" />
-                Select Folder
+                {provider === 'vimeo' ? 'Select Folder' : 'Select Collection'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Label htmlFor="folder-select">Select Folder</Label>
+                <Label htmlFor="folder-select">
+                  {provider === 'vimeo' ? 'Select Folder' : 'Select Collection'}
+                </Label>
                 <Select onValueChange={(value) => {
-                  const folder = folders.find(f => f.uri === value);
+                  const foldersList = provider === 'vimeo' ? folders : bunnyCollections;
+                  const folder = foldersList.find(f => f.uri === value);
                   setSelectedFolder(folder || null);
                   setVideos([]); // Clear videos when folder changes
                   setError('');
                   setSuccess('');
                 }} data-testid="select-folder">
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a folder to export videos from" />
+                    <SelectValue placeholder={`Choose a ${provider === 'vimeo' ? 'folder' : 'collection'} to export videos from`} />
                   </SelectTrigger>
                   <SelectContent>
-                    {folders.map((folder) => (
+                    {(provider === 'vimeo' ? folders : bunnyCollections).map((folder) => (
                       <SelectItem key={folder.uri} value={folder.uri} data-testid={`folder-option-${folder.uri.split('/').pop()}`}>
                         <div className="flex flex-col">
                           <span className="font-medium">{folder.name}</span>
@@ -1185,14 +1283,14 @@ export default function Home() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  {selectedFolder ? `Selected: ${selectedFolder.name}` : 'Select a folder to continue'}
+                  {selectedFolder ? `Selected: ${selectedFolder.name}` : `Select a ${provider === 'vimeo' ? 'folder' : 'collection'} to continue`}
                 </p>
               </div>
 
               {/* Fetch Videos Button */}
               {selectedFolder && (
                 <Button
-                  onClick={fetchVideos}
+                  onClick={provider === 'vimeo' ? fetchVideos : fetchBunnyStreamVideos}
                   disabled={loading}
                   className="w-full"
                   data-testid="button-fetch-videos"
