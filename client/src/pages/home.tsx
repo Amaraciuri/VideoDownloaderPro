@@ -131,16 +131,18 @@ export default function Home() {
     setSelectedFolder(null);
 
     try {
-      // Fetch all videos with pagination support
+      // Fetch all videos with pagination support (using page parameter)
       let allVideos: VimeoVideo[] = [];
-      let nextUrl: string | null = 'https://api.vimeo.com/me/videos?per_page=100';
       let currentPage = 1;
+      let hasMorePages = true;
+      const perPage = 100;
 
-      while (nextUrl) {
+      while (hasMorePages) {
         // Update success message to show progress
         setSuccess(`Fetching all your videos... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
         
-        const response = await fetch(nextUrl, {
+        const url = `https://api.vimeo.com/me/videos?per_page=${perPage}&page=${currentPage}`;
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${apiToken}`,
             'Accept': 'application/vnd.vimeo.*+json;version=3.4'
@@ -169,13 +171,13 @@ export default function Home() {
         // Add to total collection
         allVideos = [...allVideos, ...pageVideos];
         
-        // Check for next page
-        nextUrl = data.paging?.next || null;
+        // Check if we have more pages (if we got less than perPage, we're done)
+        hasMorePages = pageVideos.length === perPage;
         currentPage++;
         
         // Small delay to be nice to the API
-        if (nextUrl) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (hasMorePages) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
       
@@ -224,16 +226,18 @@ export default function Home() {
         throw new Error('Invalid folder ID');
       }
 
-      // Fetch all videos with pagination support
+      // Fetch all videos with pagination support (using page parameter instead of nextUrl)
       let allVideos: VimeoVideo[] = [];
-      let nextUrl: string | null = `https://api.vimeo.com/me/folders/${folderId}/videos?per_page=100`;
       let currentPage = 1;
+      let hasMorePages = true;
+      const perPage = 100;
 
-      while (nextUrl) {
+      while (hasMorePages) {
         // Update success message to show progress
         setSuccess(`Fetching videos... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
         
-        const response = await fetch(nextUrl, {
+        const url = `https://api.vimeo.com/me/folders/${folderId}/videos?per_page=${perPage}&page=${currentPage}`;
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${apiToken}`,
             'Accept': 'application/vnd.vimeo.*+json;version=3.4'
@@ -264,13 +268,13 @@ export default function Home() {
         // Add to total collection
         allVideos = [...allVideos, ...pageVideos];
         
-        // Check for next page
-        nextUrl = data.paging?.next || null;
+        // Check if we have more pages (if we got less than perPage, we're done)
+        hasMorePages = pageVideos.length === perPage;
         currentPage++;
         
         // Small delay to be nice to the API
-        if (nextUrl) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (hasMorePages) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
       
