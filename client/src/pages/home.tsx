@@ -32,6 +32,12 @@ interface VimeoApiResponse {
       link: string;
     }>;
   }>;
+  paging: {
+    next?: string;
+    page: number;
+    per_page: number;
+    total: number;
+  };
 }
 
 interface VimeoFoldersApiResponse {
@@ -125,32 +131,55 @@ export default function Home() {
     setSelectedFolder(null);
 
     try {
-      // API request to get all user videos
-      const response = await fetch('https://api.vimeo.com/me/videos', {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-        }
-      });
+      // Fetch all videos with pagination support
+      let allVideos: VimeoVideo[] = [];
+      let nextUrl: string | null = 'https://api.vimeo.com/me/videos?per_page=100';
+      let currentPage = 1;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid API token. Please check your credentials.');
-        } else if (response.status === 429) {
-          throw new Error('API rate limit exceeded. Please try again later.');
-        } else {
-          throw new Error(`API request failed: ${response.status}`);
+      while (nextUrl) {
+        // Update success message to show progress
+        setSuccess(`Fetching all your videos... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
+        
+        const response = await fetch(nextUrl, {
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Invalid API token. Please check your credentials.');
+          } else if (response.status === 429) {
+            throw new Error('API rate limit exceeded. Please try again later.');
+          } else {
+            throw new Error(`API request failed: ${response.status}`);
+          }
+        }
+
+        const data: VimeoApiResponse = await response.json();
+        
+        // Extract video information from this page
+        const pageVideos: VimeoVideo[] = data.data.map(video => ({
+          title: video.name,
+          link: video.link,
+          downloadLink: video.download ? video.download[0]?.link : 'Not available'
+        }));
+        
+        // Add to total collection
+        allVideos = [...allVideos, ...pageVideos];
+        
+        // Check for next page
+        nextUrl = data.paging?.next || null;
+        currentPage++;
+        
+        // Small delay to be nice to the API
+        if (nextUrl) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-
-      const data: VimeoApiResponse = await response.json();
       
-      // Extract video information
-      const videoList: VimeoVideo[] = data.data.map(video => ({
-        title: video.name,
-        link: video.link,
-        downloadLink: video.download ? video.download[0]?.link : 'Not available'
-      }));
+      const videoList = allVideos;
 
       setVideos(videoList);
       setSuccess(`Successfully fetched ${videoList.length} videos from your account`);
@@ -195,34 +224,57 @@ export default function Home() {
         throw new Error('Invalid folder ID');
       }
 
-      // API request to Vimeo
-      const response = await fetch(`https://api.vimeo.com/me/folders/${folderId}/videos`, {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Accept': 'application/vnd.vimeo.*+json;version=3.4'
-        }
-      });
+      // Fetch all videos with pagination support
+      let allVideos: VimeoVideo[] = [];
+      let nextUrl: string | null = `https://api.vimeo.com/me/folders/${folderId}/videos?per_page=100`;
+      let currentPage = 1;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid API token. Please check your credentials.');
-        } else if (response.status === 404) {
-          throw new Error('Folder not found. Please check the folder ID.');
-        } else if (response.status === 429) {
-          throw new Error('API rate limit exceeded. Please try again later.');
-        } else {
-          throw new Error(`API request failed: ${response.status}`);
+      while (nextUrl) {
+        // Update success message to show progress
+        setSuccess(`Fetching videos... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
+        
+        const response = await fetch(nextUrl, {
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Accept': 'application/vnd.vimeo.*+json;version=3.4'
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Invalid API token. Please check your credentials.');
+          } else if (response.status === 404) {
+            throw new Error('Folder not found. Please check the folder ID.');
+          } else if (response.status === 429) {
+            throw new Error('API rate limit exceeded. Please try again later.');
+          } else {
+            throw new Error(`API request failed: ${response.status}`);
+          }
+        }
+
+        const data: VimeoApiResponse = await response.json();
+        
+        // Extract video information from this page
+        const pageVideos: VimeoVideo[] = data.data.map(video => ({
+          title: video.name,
+          link: video.link,
+          downloadLink: video.download ? video.download[0]?.link : 'Not available'
+        }));
+        
+        // Add to total collection
+        allVideos = [...allVideos, ...pageVideos];
+        
+        // Check for next page
+        nextUrl = data.paging?.next || null;
+        currentPage++;
+        
+        // Small delay to be nice to the API
+        if (nextUrl) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-
-      const data: VimeoApiResponse = await response.json();
       
-      // Extract video information
-      const videoList: VimeoVideo[] = data.data.map(video => ({
-        title: video.name,
-        link: video.link,
-        downloadLink: video.download ? video.download[0]?.link : 'Not available'
-      }));
+      const videoList = allVideos;
 
       setVideos(videoList);
       setSuccess(`Successfully fetched ${videoList.length} videos from folder "${selectedFolder.name}"`);
