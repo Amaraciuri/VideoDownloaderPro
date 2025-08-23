@@ -67,6 +67,8 @@ export default function Home() {
   const [showToken, setShowToken] = useState(false);
   const [copiedLinks, setCopiedLinks] = useState<Set<string>>(new Set());
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
+  const [bulkAiProcessing, setBulkAiProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{processed: number, total: number, errors: number}>({processed: 0, total: 0, errors: 0});
   const { toast } = useToast();
 
   // Copy link to clipboard
@@ -179,6 +181,78 @@ export default function Home() {
         newSet.delete(video.videoId!);
         return newSet;
       });
+    }
+  };
+
+  // Bulk AI title generation for all videos
+  const generateAllAiTitles = async () => {
+    const videosToProcess = videos.filter(v => v.videoId && v.thumbnailUrl && !v.aiTitle);
+    
+    if (videosToProcess.length === 0) {
+      toast({
+        title: "Nessun Video da Processare",
+        description: "Tutti i video hanno già un titolo AI o non hanno thumbnail disponibili",
+      });
+      return;
+    }
+
+    setBulkAiProcessing(true);
+    setBulkProgress({processed: 0, total: videosToProcess.length, errors: 0});
+
+    try {
+      const videosPayload = videosToProcess.map(video => ({
+        videoId: video.videoId!,
+        thumbnailUrl: video.thumbnailUrl!,
+        originalTitle: video.title
+      }));
+
+      const response = await fetch('/api/analyze-thumbnails-bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videos: videosPayload }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Elaborazione bulk fallita');
+      }
+
+      const data = await response.json();
+      
+      // Update videos with AI titles
+      setVideos(prev => prev.map(video => {
+        const result = data.results.find((r: any) => r.videoId === video.videoId);
+        if (result) {
+          return { ...video, aiTitle: result.aiTitle };
+        }
+        return video;
+      }));
+
+      setBulkProgress({
+        processed: data.successful,
+        total: data.total,
+        errors: data.failed
+      });
+
+      toast({
+        title: "Elaborazione Bulk Completata",
+        description: `${data.successful} titoli generati con successo${data.failed > 0 ? `, ${data.failed} errori` : ''}`,
+      });
+
+      if (data.errors && data.errors.length > 0) {
+        console.error('Bulk processing errors:', data.errors);
+      }
+
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Errore Elaborazione Bulk",
+        description: "Impossibile elaborare i video in modalità bulk. Riprova.",
+      });
+      console.error('Bulk AI processing error:', err);
+    } finally {
+      setBulkAiProcessing(false);
     }
   };
 
@@ -712,15 +786,50 @@ export default function Home() {
                   <FileSpreadsheet className="h-5 w-5 text-gray-600" />
                   Video Results ({videos.length} videos)
                 </CardTitle>
-                <Button
-                  onClick={exportToExcel}
-                  className="bg-green-600 hover:bg-green-700"
-                  data-testid="button-export-excel"
-                >
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export to Excel
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={generateAllAiTitles}
+                    disabled={bulkAiProcessing || videos.filter(v => v.videoId && v.thumbnailUrl && !v.aiTitle).length === 0}
+                    variant="outline"
+                    className="bg-purple-50 hover:bg-purple-100 border-purple-200"
+                    data-testid="button-generate-all-ai-titles"
+                  >
+                    {bulkAiProcessing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generando... ({bulkProgress.processed}/{bulkProgress.total})
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Genera Tutti i Titoli AI
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={exportToExcel}
+                    className="bg-green-600 hover:bg-green-700"
+                    data-testid="button-export-excel"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Export to Excel
+                  </Button>
+                </div>
               </div>
+              {bulkAiProcessing && (
+                <div className="mt-4 space-y-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(bulkProgress.processed / bulkProgress.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Elaborazione AI in corso: {bulkProgress.processed} di {bulkProgress.total} video processati
+                    {bulkProgress.errors > 0 && ` (${bulkProgress.errors} errori)`}
+                  </p>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
