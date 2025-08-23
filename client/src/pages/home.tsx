@@ -76,13 +76,16 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
-  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream'>('vimeo');
+  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream' | 'wistia'>('vimeo');
   const [bunnyApiKey, setBunnyApiKey] = useState('');
   const [bunnyStorageZone, setBunnyStorageZone] = useState('');
   const [bunnyStreamApiKey, setBunnyStreamApiKey] = useState('');
   const [bunnyLibraryId, setBunnyLibraryId] = useState('');
   const [bunnyCollections, setBunnyCollections] = useState<VimeoFolder[]>([]);
   const [loadingBunnyCollections, setLoadingBunnyCollections] = useState(false);
+  const [wistiaApiToken, setWistiaApiToken] = useState('');
+  const [wistiaProjects, setWistiaProjects] = useState<VimeoFolder[]>([]);
+  const [loadingWistiaProjects, setLoadingWistiaProjects] = useState(false);
   const { toast } = useToast();
 
   // Apply filters when search query or date filter changes
@@ -539,6 +542,145 @@ export default function Home() {
     }
   };
 
+  // Fetch projects from Wistia API
+  const fetchWistiaProjects = async () => {
+    if (!wistiaApiToken.trim()) {
+      setError('Please enter your Wistia API token first');
+      return;
+    }
+
+    setLoadingWistiaProjects(true);
+    setError('');
+    setSuccess('');
+    setWistiaProjects([]);
+
+    try {
+      const url = 'https://api.wistia.com/v1/projects.json';
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${wistiaApiToken}`,
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid Wistia API token. Please check your credentials.');
+        } else {
+          throw new Error(`Wistia API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our folder format
+      const projects: VimeoFolder[] = data.map((project: any) => ({
+        uri: project.id.toString(),
+        name: project.name || 'Untitled Project',
+        description: project.description || '',
+        video_count: project.mediaCount || 0
+      }));
+
+      setWistiaProjects(projects);
+      setSuccess(`Found ${projects.length} projects in your Wistia account`);
+      toast({
+        title: "Success",
+        description: `Found ${projects.length} projects`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoadingWistiaProjects(false);
+    }
+  };
+
+  // Fetch videos from Wistia API
+  const fetchWistiaVideos = async () => {
+    if (!wistiaApiToken.trim()) {
+      setError('Please enter your Wistia API token');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setAllVideosLoaded([]);
+    setSelectedFolder(null);
+
+    try {
+      // Wistia API endpoint - with project filter if folder is selected
+      let url = 'https://api.wistia.com/v1/medias.json';
+      if (selectedFolder) {
+        url += `?project_id=${selectedFolder.uri}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${wistiaApiToken}`,
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid Wistia API token. Please check your credentials.');
+        } else {
+          throw new Error(`Wistia API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our video format
+      const videoList: VimeoVideo[] = data.map((video: any) => ({
+        title: video.name || 'Untitled Video',
+        link: `https://wistia.com/medias/${video.hashed_id}`,
+        downloadLink: video.assets?.find((asset: any) => asset.type === 'OriginalFile')?.url || null,
+        videoId: video.hashed_id,
+        thumbnailUrl: video.thumbnail?.url
+      }));
+
+      // Sort videos by title
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
+      setVideos(videosWithAiTitles);
+      
+      const sourceText = selectedFolder 
+        ? `project "${selectedFolder.name}"` 
+        : 'Wistia account';
+      
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from ${sourceText}`);
+      toast({
+        title: "Success",
+        description: `Fetched ${sortedVideoList.length} videos from ${sourceText}`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch videos from Bunny.net Stream API
   const fetchBunnyStreamVideos = async () => {
     if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
@@ -631,6 +773,11 @@ export default function Home() {
     
     if (provider === 'bunny-stream') {
       fetchBunnyStreamVideos();
+      return;
+    }
+    
+    if (provider === 'wistia') {
+      fetchWistiaVideos();
       return;
     }
 
@@ -949,13 +1096,14 @@ export default function Home() {
             {/* Provider Selection */}
             <div className="space-y-2">
               <Label htmlFor="provider-select">Video Provider</Label>
-              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny' | 'bunny-stream') => {
+              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia') => {
                 setProvider(value);
                 // Clear data when switching providers
                 setVideos([]);
                 setAllVideosLoaded([]);
                 setFolders([]);
                 setBunnyCollections([]);
+                setWistiaProjects([]);
                 setSelectedFolder(null);
                 setError('');
                 setSuccess('');
@@ -967,6 +1115,7 @@ export default function Home() {
                   <SelectItem value="vimeo">Vimeo</SelectItem>
                   <SelectItem value="bunny">Bunny.net Storage</SelectItem>
                   <SelectItem value="bunny-stream">Bunny.net Stream</SelectItem>
+                  <SelectItem value="wistia">Wistia</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1110,6 +1259,44 @@ export default function Home() {
               </>
             )}
 
+            {/* Wistia Configuration */}
+            {provider === 'wistia' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="wistia-api-token">Wistia API Token</Label>
+                  <div className="relative">
+                    <Input
+                      id="wistia-api-token"
+                      type={showToken ? "text" : "password"}
+                      value={wistiaApiToken}
+                      onChange={(e) => setWistiaApiToken(e.target.value)}
+                      placeholder="Enter your Wistia API token"
+                      className="pr-10"
+                      data-testid="input-wistia-api-token"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      data-testid="button-toggle-wistia-token-visibility"
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your API token from{" "}
+                    <a href="https://wistia.com/support/developers/data-api#creating-and-managing-access-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Wistia Account Settings → API Access
+                    </a>
+                    <br />
+                    <strong>Required permissions:</strong> Read access to projects and media
+                  </p>
+                </div>
+              </>
+            )}
+
             {/* Load Videos Button */}
             {provider === 'vimeo' && (
               <>
@@ -1239,25 +1426,84 @@ export default function Home() {
                 </div>
               </>
             )}
+
+            {/* Wistia Buttons */}
+            {provider === 'wistia' && (
+              <>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={fetchWistiaProjects}
+                      disabled={loadingWistiaProjects || !wistiaApiToken.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-wistia-projects"
+                    >
+                      {loadingWistiaProjects ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Folder className="h-4 w-4 mr-2" />
+                          Load Projects
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={fetchAllVideos}
+                      disabled={loading || !wistiaApiToken.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-wistia-videos"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Video className="h-4 w-4 mr-2" />
+                          Load All Videos
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Load projects OR load all videos directly from your Wistia account
+                  </p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Folder/Collection Selection - For Vimeo and Bunny Stream */}
-        {((provider === 'vimeo' && folders.length > 0) || (provider === 'bunny-stream' && bunnyCollections.length > 0)) && (
+        {/* Folder/Collection/Project Selection - For Vimeo, Bunny Stream, and Wistia */}
+        {((provider === 'vimeo' && folders.length > 0) || 
+          (provider === 'bunny-stream' && bunnyCollections.length > 0) ||
+          (provider === 'wistia' && wistiaProjects.length > 0)) && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Folder className="h-5 w-5 text-gray-600" />
-                {provider === 'vimeo' ? 'Select Folder' : 'Select Collection'}
+                {provider === 'vimeo' ? 'Select Folder' : 
+                 provider === 'bunny-stream' ? 'Select Collection' : 
+                 'Select Project'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <Label htmlFor="folder-select">
-                  {provider === 'vimeo' ? 'Select Folder' : 'Select Collection'}
+                  {provider === 'vimeo' ? 'Select Folder' : 
+                   provider === 'bunny-stream' ? 'Select Collection' : 
+                   'Select Project'}
                 </Label>
                 <Select onValueChange={(value) => {
-                  const foldersList = provider === 'vimeo' ? folders : bunnyCollections;
+                  const foldersList = provider === 'vimeo' ? folders : 
+                                     provider === 'bunny-stream' ? bunnyCollections : 
+                                     wistiaProjects;
                   const folder = foldersList.find(f => f.uri === value);
                   setSelectedFolder(folder || null);
                   setVideos([]); // Clear videos when folder changes
@@ -1265,10 +1511,14 @@ export default function Home() {
                   setSuccess('');
                 }} data-testid="select-folder">
                   <SelectTrigger>
-                    <SelectValue placeholder={`Choose a ${provider === 'vimeo' ? 'folder' : 'collection'} to export videos from`} />
+                    <SelectValue placeholder={`Choose a ${provider === 'vimeo' ? 'folder' : 
+                                                       provider === 'bunny-stream' ? 'collection' : 
+                                                       'project'} to export videos from`} />
                   </SelectTrigger>
                   <SelectContent>
-                    {(provider === 'vimeo' ? folders : bunnyCollections).map((folder) => (
+                    {(provider === 'vimeo' ? folders : 
+                      provider === 'bunny-stream' ? bunnyCollections : 
+                      wistiaProjects).map((folder) => (
                       <SelectItem key={folder.uri} value={folder.uri} data-testid={`folder-option-${folder.uri.split('/').pop()}`}>
                         <div className="flex flex-col">
                           <span className="font-medium">{folder.name}</span>
@@ -1283,14 +1533,19 @@ export default function Home() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  {selectedFolder ? `Selected: ${selectedFolder.name}` : `Select a ${provider === 'vimeo' ? 'folder' : 'collection'} to continue`}
+                  {selectedFolder ? `Selected: ${selectedFolder.name}` : 
+                   `Select a ${provider === 'vimeo' ? 'folder' : 
+                              provider === 'bunny-stream' ? 'collection' : 
+                              'project'} to continue`}
                 </p>
               </div>
 
               {/* Fetch Videos Button */}
               {selectedFolder && (
                 <Button
-                  onClick={provider === 'vimeo' ? fetchVideos : fetchBunnyStreamVideos}
+                  onClick={provider === 'vimeo' ? fetchVideos : 
+                           provider === 'bunny-stream' ? fetchBunnyStreamVideos : 
+                           fetchWistiaVideos}
                   disabled={loading}
                   className="w-full"
                   data-testid="button-fetch-videos"
