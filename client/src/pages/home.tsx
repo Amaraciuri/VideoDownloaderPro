@@ -117,8 +117,8 @@ export default function Home() {
       await navigator.clipboard.writeText(link);
       setCopiedLinks(prev => new Set(Array.from(prev).concat([link])));
       toast({
-        title: "Link Copiato",
-        description: `Link di "${videoTitle}" copiato negli appunti`,
+        title: "Link Copied",
+        description: `Link for "${videoTitle}" copied to clipboard`,
       });
       // Reset the copied state after 2 seconds
       setTimeout(() => {
@@ -131,8 +131,8 @@ export default function Home() {
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Errore",
-        description: "Impossibile copiare il link. Prova a copiarlo manualmente.",
+        title: "Error",
+        description: "Unable to copy link. Please copy it manually.",
       });
     }
   };
@@ -170,8 +170,8 @@ export default function Home() {
     if (!video.videoId || !video.thumbnailUrl) {
       toast({
         variant: "destructive",
-        title: "Errore",
-        description: "Thumbnail non disponibile per questo video",
+        title: "Error",
+        description: "Thumbnail not available for this video",
       });
       return;
     }
@@ -206,15 +206,15 @@ export default function Home() {
       ));
 
       toast({
-        title: "Titolo AI Estratto",
+        title: "AI Title Generated",
         description: `"${data.aiTitle}"`,
       });
 
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Errore AI",
-        description: "Impossibile analizzare la thumbnail. Riprova.",
+        title: "AI Error",
+        description: "Unable to analyze thumbnail. Please try again.",
       });
     } finally {
       setAiAnalyzing(prev => {
@@ -244,21 +244,21 @@ export default function Home() {
           setShowUnlockDialog(false);
           setUnlockPassword('');
           toast({
-            title: "AI Sbloccata",
-            description: "Funzioni AI attivate con successo!",
+            title: "AI Unlocked",
+            description: "AI functions activated successfully!",
           });
         } else {
           toast({
             variant: "destructive",
-            title: "Password Errata",
-            description: "La password inserita non è corretta.",
+            title: "Incorrect Password",
+            description: "The password entered is not correct.",
           });
         }
       } catch (error) {
         toast({
           variant: "destructive",
-          title: "Errore",
-          description: "Impossibile verificare la password. Riprova.",
+          title: "Error",
+          description: "Unable to verify password. Please try again.",
         });
       }
     } else if (unlockMethod === 'api-key') {
@@ -267,14 +267,14 @@ export default function Home() {
         setShowUnlockDialog(false);
         setUserOpenAiKey('');
         toast({
-          title: "AI Sbloccata",
-          description: "Funzioni AI attivate con la tua API key personale!",
+          title: "AI Unlocked",
+          description: "AI functions activated with your personal API key!",
         });
       } else {
         toast({
           variant: "destructive",
           title: "API Key Non Valida",
-          description: "Inserisci una API key OpenAI valida (inizia con 'sk-')",
+          description: "Please enter a valid OpenAI API key (starts with 'sk-')",
         });
       }
     }
@@ -287,7 +287,7 @@ export default function Home() {
     if (videosToProcess.length === 0) {
       toast({
         title: "Nessun Video da Processare",
-        description: "Tutti i video hanno già un titolo AI o non hanno thumbnail disponibili",
+        description: "All videos already have an AI title or no thumbnails available",
       });
       return;
     }
@@ -346,8 +346,8 @@ export default function Home() {
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Errore Elaborazione Bulk",
-        description: "Impossibile elaborare i video in modalità bulk. Riprova.",
+        title: "Bulk Processing Error",
+        description: "Unable to process videos in bulk mode. Please try again.",
       });
       console.error('Bulk AI processing error:', err);
     } finally {
@@ -1083,7 +1083,7 @@ export default function Home() {
     try {
       // Create worksheet data
       const worksheetData = [
-        ['Titolo Originale', 'Titolo AI', 'Video Link', 'Download Link'],
+        ['Original Title', 'AI Title', 'Video Link', 'Download Link'],
         ...videos.map(video => [video.title, video.aiTitle || '', video.link, video.downloadLink])
       ];
 
@@ -1656,7 +1656,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Search Input */}
                 <div className="space-y-2">
-                  <Label htmlFor="search-videos">Cerca per nome</Label>
+                  <Label htmlFor="search-videos">Search by name</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
@@ -1664,7 +1664,7 @@ export default function Home() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Cerca video per titolo..."
+                      placeholder="Search videos by title..."
                       className="pl-10"
                       data-testid="input-search-videos"
                     />
@@ -1673,17 +1673,17 @@ export default function Home() {
 
                 {/* Date Filter */}
                 <div className="space-y-2">
-                  <Label htmlFor="date-filter">Filtro per data</Label>
+                  <Label htmlFor="date-filter">Filter by date</Label>
                   <Select value={dateFilter} onValueChange={setDateFilter} data-testid="select-date-filter">
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona periodo" />
+                      <SelectValue placeholder="Select period" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tutti i video</SelectItem>
-                      <SelectItem value="1month">Ultimo mese</SelectItem>
-                      <SelectItem value="3months">Ultimi 3 mesi</SelectItem>
-                      <SelectItem value="6months">Ultimi 6 mesi</SelectItem>
-                      <SelectItem value="1year">Ultimo anno</SelectItem>
+                      <SelectItem value="all">All videos</SelectItem>
+                      <SelectItem value="1month">Last month</SelectItem>
+                      <SelectItem value="3months">Last 3 months</SelectItem>
+                      <SelectItem value="6months">Last 6 months</SelectItem>
+                      <SelectItem value="1year">Last year</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1701,12 +1701,12 @@ export default function Home() {
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Caricando...
+                        Loading...
                       </>
                     ) : (
                       <>
                         <Calendar className="h-4 w-4 mr-2" />
-                        Applica Filtro Data
+                        Apply Date Filter
                       </>
                     )}
                   </Button>
@@ -1716,13 +1716,13 @@ export default function Home() {
               {/* Results Summary */}
               <div className="flex items-center justify-between text-sm text-gray-600 pt-2 border-t">
                 <span>
-                  Mostrando {videos.length} di {allVideosLoaded.length} video
-                  {searchQuery && ` • Ricerca: "${searchQuery}"`}
-                  {dateFilter !== 'all' && ` • Periodo: ${
-                    dateFilter === '1month' ? 'Ultimo mese' :
-                    dateFilter === '3months' ? 'Ultimi 3 mesi' :
-                    dateFilter === '6months' ? 'Ultimi 6 mesi' :
-                    dateFilter === '1year' ? 'Ultimo anno' : ''
+                  Showing {videos.length} of {allVideosLoaded.length} videos
+                  {searchQuery && ` • Search: "${searchQuery}"`}
+                  {dateFilter !== 'all' && ` • Period: ${
+                    dateFilter === '1month' ? 'Last month' :
+                    dateFilter === '3months' ? 'Last 3 months' :
+                    dateFilter === '6months' ? 'Last 6 months' :
+                    dateFilter === '1year' ? 'Last year' : ''
                   }`}
                 </span>
                 {searchQuery && (
@@ -1759,14 +1759,14 @@ export default function Home() {
                           data-testid="button-unlock-ai"
                         >
                           <Lock className="h-4 w-4 mr-2" />
-                          Sblocca AI
+                          Unlock AI
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-lg" data-testid="dialog-unlock-ai">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
                             <Lock className="h-5 w-5" />
-                            Sblocca Funzioni AI
+                            Unlock AI Functions
                           </DialogTitle>
                           <DialogDescription>
                             Scegli come sbloccare le funzioni AI: con password o con la tua API key OpenAI personale.
@@ -1796,7 +1796,7 @@ export default function Home() {
                                     )}
                                   </div>
                                   <div>
-                                    <div className="font-medium">Usa Password di Sistema</div>
+                                    <div className="font-medium">Use System Password</div>
                                     <div className="text-sm text-gray-500">Utilizza il credito OpenAI del sistema</div>
                                   </div>
                                 </div>
@@ -1838,7 +1838,7 @@ export default function Home() {
                                 type="password"
                                 value={unlockPassword}
                                 onChange={(e) => setUnlockPassword(e.target.value)}
-                                placeholder="Inserisci la password"
+                                placeholder="Enter password"
                                 onKeyDown={(e) => e.key === 'Enter' && unlockAi()}
                                 data-testid="input-unlock-password"
                               />
@@ -1867,7 +1867,7 @@ export default function Home() {
                           <div className="flex gap-2">
                             <Button onClick={unlockAi} className="flex-1" data-testid="button-confirm-unlock">
                               <Unlock className="h-4 w-4 mr-2" />
-                              Sblocca
+                              Unlock
                             </Button>
                             <Button 
                               variant="outline" 
@@ -1896,12 +1896,12 @@ export default function Home() {
                       {bulkAiProcessing ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generando... ({bulkProgress.processed}/{bulkProgress.total})
+                          Generating... ({bulkProgress.processed}/{bulkProgress.total})
                         </>
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
-                          Genera Tutti i Titoli AI
+                          Generate All AI Titles
                         </>
                       )}
                     </Button>
@@ -1920,8 +1920,8 @@ export default function Home() {
                 <Alert className="mt-4 border-amber-200 bg-amber-50">
                   <Lock className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800">
-                    <p className="font-medium mb-1">Funzioni AI Protette</p>
-                    <p className="text-sm">Le funzioni AI sono protette da password. Clicca "Sblocca AI" per accedere alla generazione automatica dei titoli.</p>
+                    <p className="font-medium mb-1">Protected AI Functions</p>
+                    <p className="text-sm">AI functions are password protected. Click "Unlock AI" to access automatic title generation.</p>
                   </AlertDescription>
                 </Alert>
               )}
@@ -1945,8 +1945,8 @@ export default function Home() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Titolo Originale</TableHead>
-                      <TableHead>Titolo AI</TableHead>
+                      <TableHead>Original Title</TableHead>
+                      <TableHead>AI Title</TableHead>
                       <TableHead>Video Link</TableHead>
                       <TableHead>Download Link</TableHead>
                       <TableHead>Azioni</TableHead>
@@ -2003,7 +2003,7 @@ export default function Home() {
                               {aiAnalyzing.has(video.videoId!) ? (
                                 <>
                                   <Loader2 className="h-3 w-3 animate-spin" />
-                                  <span className="text-xs">Generando...</span>
+                                  <span className="text-xs">Generating...</span>
                                 </>
                               ) : (
                                 <>
@@ -2061,12 +2061,12 @@ export default function Home() {
                               {copiedLinks.has(video.link) ? (
                                 <>
                                   <Check className="h-3 w-3 text-green-600" />
-                                  <span className="text-xs">Copiato!</span>
+                                  <span className="text-xs">Copied!</span>
                                 </>
                               ) : (
                                 <>
                                   <Copy className="h-3 w-3" />
-                                  <span className="text-xs">Copia</span>
+                                  <span className="text-xs">Copy</span>
                                 </>
                               )}
                             </Button>
@@ -2081,7 +2081,7 @@ export default function Home() {
                                 {copiedLinks.has(video.downloadLink) ? (
                                   <>
                                     <Check className="h-3 w-3 text-green-600" />
-                                    <span className="text-xs">Copiato!</span>
+                                    <span className="text-xs">Copied!</span>
                                   </>
                                 ) : (
                                   <>
