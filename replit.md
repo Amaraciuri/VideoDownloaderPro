@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **Storage Interface**: Abstracted storage layer with in-memory fallback
 - **Session Management**: Express sessions with PostgreSQL store
 - **AI Feature Protection**: Password-protected AI features with dual unlock methods:
-  - System password (MG2025) using server's OpenAI API key
+  - System password (configurable via environment variable) using server's OpenAI API key
   - Personal OpenAI API key for users with their own credits
 
 ### Component Architecture

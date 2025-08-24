@@ -11,6 +11,23 @@ const openai = new OpenAI({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Verify system password endpoint
+  app.post("/api/verify-password", async (req, res) => {
+    try {
+      const { password } = req.body;
+      const systemPassword = process.env.SYSTEM_AI_PASSWORD || 'CHANGE_ME';
+      
+      if (password === systemPassword) {
+        res.json({ valid: true });
+      } else {
+        res.json({ valid: false });
+      }
+    } catch (error) {
+      console.error("Password verification error:", error);
+      res.status(500).json({ error: "Failed to verify password" });
+    }
+  });
+
   // AI thumbnail analysis endpoint
   app.post("/api/analyze-thumbnail", async (req, res) => {
     try {

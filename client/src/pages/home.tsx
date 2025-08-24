@@ -226,21 +226,39 @@ export default function Home() {
   };
 
   // Unlock AI functions with password or personal API key
-  const unlockAi = () => {
+  const unlockAi = async () => {
     if (unlockMethod === 'password') {
-      if (unlockPassword === 'MG2025') {
-        setAiUnlocked(true);
-        setShowUnlockDialog(false);
-        setUnlockPassword('');
-        toast({
-          title: "AI Sbloccata",
-          description: "Funzioni AI attivate con successo!",
+      try {
+        const response = await fetch('/api/verify-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: unlockPassword }),
         });
-      } else {
+
+        const data = await response.json();
+        
+        if (data.valid) {
+          setAiUnlocked(true);
+          setShowUnlockDialog(false);
+          setUnlockPassword('');
+          toast({
+            title: "AI Sbloccata",
+            description: "Funzioni AI attivate con successo!",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Password Errata",
+            description: "La password inserita non è corretta.",
+          });
+        }
+      } catch (error) {
         toast({
           variant: "destructive",
-          title: "Password Errata",
-          description: "La password inserita non è corretta.",
+          title: "Errore",
+          description: "Impossibile verificare la password. Riprova.",
         });
       }
     } else if (unlockMethod === 'api-key') {

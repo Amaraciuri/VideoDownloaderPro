@@ -50,6 +50,7 @@ Create a `.env` file in the root directory:
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/video_exporter
 OPENAI_API_KEY=your_openai_api_key_here
+SYSTEM_AI_PASSWORD=your_custom_system_password
 ```
 
 4. **Set up the database**
@@ -102,7 +103,7 @@ Choose one of two options:
 
 ### 4. AI Title Enhancement (Optional)
 Unlock AI features using either:
-- **System Password:** Use `MG2025` to access AI features using server credits
+- **System Password:** Use your configured system password to access AI features using server credits
 - **Personal API Key:** Enter your own OpenAI API key to use your credits
 
 AI features include:
@@ -184,7 +185,10 @@ Click "Export to Excel" to download a formatted spreadsheet containing:
 - **No Persistent Storage:** Tokens are automatically cleared when you close or refresh the app
 - **Database Safety:** Only video metadata and AI-generated titles are stored in the database
 - **Session-based:** All credentials are session-only and never persisted
+- **System Password:** Configurable via environment variable - set your own secure password
 - **Compliance:** Respects all platform terms of service and API usage guidelines
+
+**Important:** When deploying, make sure to set a strong `SYSTEM_AI_PASSWORD` in your environment variables!
 
 ## 🎨 Customization
 
