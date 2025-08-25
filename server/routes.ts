@@ -410,19 +410,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
 
-      // Step 2: Get recordings from Zoom API
-      const recordingsResponse = await fetch('https://api.zoom.us/v2/users/me/recordings', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/json'
+      // Step 2: For Server-to-Server OAuth, we need to first get account info or use account-level endpoints
+      // Let's try to get the account's recordings using different approaches
+      
+      let recordingsResponse;
+      
+      // Approach 1: Try to get user list first, then get recordings for each user
+      try {
+        const usersResponse = await fetch('https://api.zoom.us/v2/users', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+          console.log('Successfully got users data:', usersData.users?.length || 0, 'users');
+          
+          // Get recordings for the first user (typically the account owner)
+          if (usersData.users && usersData.users.length > 0) {
+            const userId = usersData.users[0].id;
+            recordingsResponse = await fetch(`https://api.zoom.us/v2/users/${userId}/recordings`, {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Accept': 'application/json'
+              }
+            });
+          } else {
+            return res.status(404).json({ error: 'No users found in the Zoom account.' });
+          }
+        } else {
+          // Approach 2: If users endpoint fails, try the account recordings endpoint directly
+          console.log('Users endpoint failed, trying account recordings...');
+          recordingsResponse = await fetch('https://api.zoom.us/v2/accounts/me/recordings', {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'application/json'
+            }
+          });
         }
-      });
+      } catch (error) {
+        console.error('Error in Zoom API calls:', error);
+        return res.status(500).json({ error: 'Failed to fetch Zoom data' });
+      }
 
       if (!recordingsResponse.ok) {
+        const errorText = await recordingsResponse.text();
+        console.error('Zoom recordings API error:', recordingsResponse.status, errorText);
+        
         if (recordingsResponse.status === 401) {
-          return res.status(401).json({ error: 'Invalid Zoom access token or insufficient permissions.' });
+          return res.status(401).json({ 
+            error: 'Invalid Zoom access token or insufficient permissions. Make sure your app has the required scopes: cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin',
+            details: errorText
+          });
         } else {
-          return res.status(recordingsResponse.status).json({ error: `Zoom API request failed: ${recordingsResponse.status}` });
+          return res.status(recordingsResponse.status).json({ 
+            error: `Zoom recordings API request failed: ${recordingsResponse.status}`,
+            details: errorText
+          });
         }
       }
 
