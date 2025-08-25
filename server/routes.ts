@@ -409,6 +409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
+      console.log('Zoom OAuth successful, token scope:', tokenData.scope);
+      console.log('Access token length:', accessToken?.length || 'undefined');
 
       // Step 2: For Server-to-Server OAuth, we need to first get account info or use account-level endpoints
       // Let's try to get the account's recordings using different approaches
@@ -423,6 +425,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             'Accept': 'application/json'
           }
         });
+
+        console.log('Users API response status:', usersResponse.status);
+        if (!usersResponse.ok) {
+          const usersErrorText = await usersResponse.text();
+          console.log('Users API error:', usersErrorText);
+        }
 
         if (usersResponse.ok) {
           const usersData = await usersResponse.json();

@@ -1705,8 +1705,16 @@ export default function Home() {
                       </a>
                     </p>
                     <p><strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin, user:read:admin</p>
-                    <p><strong>Note:</strong> If you get a 400 error, make sure your app type is "Server-to-Server OAuth" and try adding your Account ID above.</p>
-                    <p><strong>401 Permission errors:</strong> Double-check that all required scopes are enabled in your Zoom app settings.</p>
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                      <p><strong>⚠️ TROUBLESHOOTING 401 ERRORS:</strong></p>
+                      <ol className="list-decimal list-inside mt-1 space-y-1">
+                        <li>Verify all 4 scopes are checked ✅ in your Zoom app</li>
+                        <li>Make sure your app is <strong>"Activated"</strong> (not just saved)</li>
+                        <li>Try <strong>"Continue"</strong> to complete app setup if it's still in development</li>
+                        <li>Some accounts need admin approval - check with your Zoom admin</li>
+                        <li>Wait 5-10 minutes after scope changes for them to take effect</li>
+                      </ol>
+                    </div>
                   </div>
                 </div>
               </>
