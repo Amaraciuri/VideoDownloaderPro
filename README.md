@@ -9,6 +9,7 @@ A comprehensive web application that allows you to export video titles, thumbnai
 - **Bunny.net Storage** - Static file management and export
 - **Bunny.net Stream** - Streaming videos with collections support
 - **Wistia** - Project-based video organization
+- **VdoCipher** - Secure video streaming with folder-based organization
 
 ### Core Capabilities
 - 📊 **Excel Export** - Export video data to formatted Excel files
@@ -88,6 +89,10 @@ Each platform requires different credentials:
 #### Wistia
 - Create an API token at Wistia Account Settings → API Access
 - Required permissions: Read access to projects and media
+
+#### VdoCipher
+- Get your API secret key from VdoCipher Dashboard → API Keys
+- Required permissions: Video management and folder access
 
 ### 3. Load Your Content
 Choose one of two options:
@@ -178,6 +183,13 @@ Click "Export to Excel" to download a formatted spreadsheet containing:
 - **Endpoints Used:**
   - `/projects.json` - Get projects
   - `/medias.json` - Get media files
+
+#### VdoCipher API
+- **Base URL:** `https://dev.vdocipher.com/api/videos`
+- **Authentication:** API Secret Key in header: `Authorization: Apisecret {api_key}`
+- **Endpoints Used:**
+  - `/folders/{folderId}` - Get folders
+  - `/videos?folderId={id}` - Get videos in folder
 
 ## 🔒 Security & Privacy
 

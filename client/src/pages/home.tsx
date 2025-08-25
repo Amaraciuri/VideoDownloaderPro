@@ -78,7 +78,7 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
-  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream' | 'wistia'>('vimeo');
+  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher'>('vimeo');
   const [bunnyApiKey, setBunnyApiKey] = useState('');
   const [bunnyStorageZone, setBunnyStorageZone] = useState('');
   const [bunnyStreamApiKey, setBunnyStreamApiKey] = useState('');
@@ -88,10 +88,13 @@ export default function Home() {
   const [wistiaApiToken, setWistiaApiToken] = useState('');
   const [wistiaProjects, setWistiaProjects] = useState<VimeoFolder[]>([]);
   const [loadingWistiaProjects, setLoadingWistiaProjects] = useState(false);
+  const [vdocipherApiKey, setVdocipherApiKey] = useState('');
+  const [vdocipherFolders, setVdocipherFolders] = useState<VimeoFolder[]>([]);
+  const [loadingVdocipherFolders, setLoadingVdocipherFolders] = useState(false);
   const { toast } = useToast();
 
   // Get security notice message based on selected provider
-  const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia') => {
+  const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher') => {
     switch (provider) {
       case 'vimeo':
         return 'Use your own Vimeo API token and respect Vimeo\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
@@ -101,6 +104,8 @@ export default function Home() {
         return 'Use your own Bunny.net Stream API key and Library ID and respect Bunny.net\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
       case 'wistia':
         return 'Use your own Wistia API token and respect Wistia\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
+      case 'vdocipher':
+        return 'Use your own VdoCipher API secret key and respect VdoCipher\'s terms of service. Your API key is stored temporarily in memory only and is not saved to your device.';
       default:
         return 'Use your own API credentials and respect the service\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
     }
@@ -739,6 +744,155 @@ export default function Home() {
     }
   };
 
+  // Fetch folders from VdoCipher API
+  const fetchVdocipherFolders = async () => {
+    if (!vdocipherApiKey.trim()) {
+      setError('Please enter your VdoCipher API key');
+      return;
+    }
+
+    setLoadingVdocipherFolders(true);
+    setError('');
+    setSuccess('');
+    setVdocipherFolders([]);
+    
+    try {
+      // VdoCipher API endpoint - start with root folder
+      const response = await fetch('https://dev.vdocipher.com/api/videos/folders/root', {
+        headers: {
+          'Authorization': `Apisecret ${vdocipherApiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid VdoCipher API key. Please check your credentials.');
+        } else {
+          throw new Error(`VdoCipher API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our folder format
+      const folders: VimeoFolder[] = data.folderList?.map((folder: any) => ({
+        uri: folder.id,
+        name: folder.name || 'Untitled Folder',
+        description: `${folder.videosCount} videos, ${folder.foldersCount} subfolders`,
+        video_count: folder.videosCount || 0
+      })) || [];
+
+      setVdocipherFolders(folders);
+      setSuccess(`Found ${folders.length} folders in your VdoCipher account`);
+      toast({
+        title: "Success",
+        description: `Loaded ${folders.length} folders successfully`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoadingVdocipherFolders(false);
+    }
+  };
+
+  // Fetch videos from VdoCipher API
+  const fetchVdocipherVideos = async () => {
+    if (!vdocipherApiKey.trim()) {
+      setError('Please enter your VdoCipher API key');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setAllVideosLoaded([]);
+    setSelectedFolder(null);
+
+    try {
+      // VdoCipher API endpoint - with folder filter if folder is selected
+      let url = 'https://dev.vdocipher.com/api/videos';
+      const params = new URLSearchParams();
+      
+      if (selectedFolder) {
+        params.append('folderId', selectedFolder.uri);
+      } else {
+        params.append('folderId', 'root');
+      }
+      params.append('limit', '100');
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Apisecret ${vdocipherApiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid VdoCipher API key. Please check your credentials.');
+        } else {
+          throw new Error(`VdoCipher API request failed: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      // Convert to our video format
+      const videoList: VimeoVideo[] = data.rows?.map((video: any) => ({
+        title: video.title || 'Untitled Video',
+        link: `https://player.vdocipher.com/v2/?otp=${video.otp}&playbackInfo=${video.playbackInfo}`,
+        downloadLink: video.status === 'ready' ? 'Available (Contact VdoCipher)' : 'Processing',
+        videoId: video.id,
+        thumbnailUrl: video.poster || null
+      })) || [];
+
+      // Sort videos by title
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
+      setVideos(videosWithAiTitles);
+      
+      const sourceText = selectedFolder 
+        ? `folder "${selectedFolder.name}"` 
+        : 'VdoCipher account';
+      
+      setSuccess(`Successfully fetched ${sortedVideoList.length} videos from ${sourceText}`);
+      toast({
+        title: "Success",
+        description: `Fetched ${sortedVideoList.length} videos from ${sourceText}`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch videos from Bunny.net Stream API
   const fetchBunnyStreamVideos = async () => {
     if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
@@ -836,6 +990,11 @@ export default function Home() {
     
     if (provider === 'wistia') {
       fetchWistiaVideos();
+      return;
+    }
+    
+    if (provider === 'vdocipher') {
+      fetchVdocipherVideos();
       return;
     }
 
@@ -1175,6 +1334,7 @@ export default function Home() {
                   <SelectItem value="bunny">Bunny.net Storage</SelectItem>
                   <SelectItem value="bunny-stream">Bunny.net Stream</SelectItem>
                   <SelectItem value="wistia">Wistia</SelectItem>
+                  <SelectItem value="vdocipher">VdoCipher</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1351,6 +1511,44 @@ export default function Home() {
                     </a>
                     <br />
                     <strong>Required permissions:</strong> Read access to projects and media
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* VdoCipher Configuration */}
+            {provider === 'vdocipher' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="vdocipher-api-key">VdoCipher API Secret Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="vdocipher-api-key"
+                      type={showToken ? "text" : "password"}
+                      value={vdocipherApiKey}
+                      onChange={(e) => setVdocipherApiKey(e.target.value)}
+                      placeholder="Enter your VdoCipher API secret key"
+                      className="pr-10"
+                      data-testid="input-vdocipher-api-key"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      data-testid="button-toggle-vdocipher-token-visibility"
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Get your API secret key from{" "}
+                    <a href="https://www.vdocipher.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      VdoCipher Dashboard → API Keys
+                    </a>
+                    <br />
+                    <strong>Required permissions:</strong> Video management and folder access
                   </p>
                 </div>
               </>
@@ -1536,20 +1734,73 @@ export default function Home() {
                 </div>
               </>
             )}
+
+            {/* VdoCipher Buttons */}
+            {provider === 'vdocipher' && (
+              <>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={fetchVdocipherFolders}
+                      disabled={loadingVdocipherFolders || !vdocipherApiKey.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-vdocipher-folders"
+                    >
+                      {loadingVdocipherFolders ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Folder className="h-4 w-4 mr-2" />
+                          Load Folders
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={fetchAllVideos}
+                      disabled={loading || !vdocipherApiKey.trim()}
+                      variant="outline"
+                      className="w-full"
+                      data-testid="button-load-vdocipher-videos"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Video className="h-4 w-4 mr-2" />
+                          Load All Videos
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Load folders OR load all videos directly from your VdoCipher account
+                  </p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Folder/Collection/Project Selection - For Vimeo, Bunny Stream, and Wistia */}
+        {/* Folder/Collection/Project Selection - For Vimeo, Bunny Stream, Wistia, and VdoCipher */}
         {((provider === 'vimeo' && folders.length > 0) || 
           (provider === 'bunny-stream' && bunnyCollections.length > 0) ||
-          (provider === 'wistia' && wistiaProjects.length > 0)) && (
+          (provider === 'wistia' && wistiaProjects.length > 0) ||
+          (provider === 'vdocipher' && vdocipherFolders.length > 0)) && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Folder className="h-5 w-5 text-gray-600" />
                 {provider === 'vimeo' ? 'Select Folder' : 
                  provider === 'bunny-stream' ? 'Select Collection' : 
-                 'Select Project'}
+                 provider === 'wistia' ? 'Select Project' : 
+                 'Select Folder'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -1557,7 +1808,8 @@ export default function Home() {
                 <Label htmlFor="folder-select">
                   {provider === 'vimeo' ? 'Select Folder' : 
                    provider === 'bunny-stream' ? 'Select Collection' : 
-                   'Select Project'}
+                   provider === 'wistia' ? 'Select Project' : 
+                   'Select Folder'}
                 </Label>
                 <Select onValueChange={(value) => {
                   const foldersList = provider === 'vimeo' ? folders : 
@@ -1577,7 +1829,8 @@ export default function Home() {
                   <SelectContent>
                     {(provider === 'vimeo' ? folders : 
                       provider === 'bunny-stream' ? bunnyCollections : 
-                      wistiaProjects).map((folder) => (
+                      provider === 'wistia' ? wistiaProjects :
+                      vdocipherFolders).map((folder) => (
                       <SelectItem key={folder.uri} value={folder.uri} data-testid={`folder-option-${folder.uri.split('/').pop()}`}>
                         <div className="flex flex-col">
                           <span className="font-medium">{folder.name}</span>
@@ -1604,7 +1857,8 @@ export default function Home() {
                 <Button
                   onClick={provider === 'vimeo' ? fetchVideos : 
                            provider === 'bunny-stream' ? fetchBunnyStreamVideos : 
-                           fetchWistiaVideos}
+                           provider === 'wistia' ? fetchWistiaVideos :
+                           fetchVdocipherVideos}
                   disabled={loading}
                   className="w-full"
                   data-testid="button-fetch-videos"
@@ -2204,6 +2458,31 @@ export default function Home() {
                   <li>Review the video list and click "Export to Excel" to download the data</li>
                   <li>
                     <strong>Tip:</strong> Wistia provides excellent thumbnail and analytics data for your videos
+                  </li>
+                </ol>
+              )}
+
+              {provider === 'vdocipher' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Get your API secret key from{" "}
+                    <a href="https://www.vdocipher.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      VdoCipher Dashboard → API Keys
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Required permissions:</strong> Make sure your API key has video management and folder access
+                  </li>
+                  <li>Enter your API secret key and choose one of two options:</li>
+                  <li className="ml-4">
+                    <strong>Option A:</strong> Click "Load Folders" → Select a folder → Click "Fetch Videos"
+                  </li>
+                  <li className="ml-4">
+                    <strong>Option B:</strong> Click "Load All Videos" to get all videos from your account
+                  </li>
+                  <li>Review the video list and click "Export to Excel" to download the data</li>
+                  <li>
+                    <strong>Tip:</strong> VdoCipher provides secure video streaming with detailed analytics and DRM protection
                   </li>
                 </ol>
               )}
