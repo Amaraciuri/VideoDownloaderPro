@@ -757,20 +757,12 @@ export default function Home() {
     setVdocipherFolders([]);
     
     try {
-      // VdoCipher API endpoint - start with root folder
-      const response = await fetch('https://dev.vdocipher.com/api/videos/folders/root', {
-        headers: {
-          'Authorization': `Apisecret ${vdocipherApiKey}`,
-          'Accept': 'application/json'
-        }
-      });
+      // Use our backend proxy to avoid CORS issues
+      const response = await fetch(`/api/vdocipher/folders?apiKey=${encodeURIComponent(vdocipherApiKey)}`);
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid VdoCipher API key. Please check your credentials.');
-        } else {
-          throw new Error(`VdoCipher API request failed: ${response.status}`);
-        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API request failed: ${response.status}`);
       }
 
       const data = await response.json();
@@ -817,34 +809,21 @@ export default function Home() {
     setSelectedFolder(null);
 
     try {
-      // VdoCipher API endpoint - with folder filter if folder is selected
-      let url = 'https://dev.vdocipher.com/api/videos';
-      const params = new URLSearchParams();
+      // Use our backend proxy to avoid CORS issues
+      let url = `/api/vdocipher/videos?apiKey=${encodeURIComponent(vdocipherApiKey)}`;
       
       if (selectedFolder) {
-        params.append('folderId', selectedFolder.uri);
+        url += `&folderId=${selectedFolder.uri}`;
       } else {
-        params.append('folderId', 'root');
+        url += `&folderId=root`;
       }
-      params.append('limit', '100');
+      url += `&limit=100`;
       
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Apisecret ${vdocipherApiKey}`,
-          'Accept': 'application/json'
-        }
-      });
+      const response = await fetch(url);
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid VdoCipher API key. Please check your credentials.');
-        } else {
-          throw new Error(`VdoCipher API request failed: ${response.status}`);
-        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API request failed: ${response.status}`);
       }
 
       const data = await response.json();

@@ -296,6 +296,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // VdoCipher API proxy routes (to handle CORS issues)
+  app.get("/api/vdocipher/folders", async (req, res) => {
+    try {
+      const { apiKey } = req.query;
+      
+      if (!apiKey || typeof apiKey !== 'string') {
+        return res.status(400).json({ error: "VdoCipher API key is required" });
+      }
+
+      const response = await fetch('https://dev.vdocipher.com/api/videos/folders/root', {
+        headers: {
+          'Authorization': `Apisecret ${apiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return res.status(401).json({ error: 'Invalid VdoCipher API key. Please check your credentials.' });
+        } else {
+          return res.status(response.status).json({ error: `VdoCipher API request failed: ${response.status}` });
+        }
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("VdoCipher folders error:", error);
+      res.status(500).json({ error: "Failed to fetch VdoCipher folders" });
+    }
+  });
+
+  app.get("/api/vdocipher/videos", async (req, res) => {
+    try {
+      const { apiKey, folderId } = req.query;
+      
+      if (!apiKey || typeof apiKey !== 'string') {
+        return res.status(400).json({ error: "VdoCipher API key is required" });
+      }
+
+      let url = 'https://dev.vdocipher.com/api/videos';
+      if (folderId && folderId !== 'all') {
+        url += `?folderId=${folderId}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Apisecret ${apiKey}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return res.status(401).json({ error: 'Invalid VdoCipher API key. Please check your credentials.' });
+        } else {
+          return res.status(response.status).json({ error: `VdoCipher API request failed: ${response.status}` });
+        }
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("VdoCipher videos error:", error);
+      res.status(500).json({ error: "Failed to fetch VdoCipher videos" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
