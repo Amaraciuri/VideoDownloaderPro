@@ -482,8 +482,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (recordingsResponse) {
           status = recordingsResponse.status;
-          errorText = await recordingsResponse.text();
-          console.error('Zoom recordings API error:', recordingsResponse.status, errorText);
+          try {
+            errorText = await recordingsResponse.text();
+            console.error('Zoom recordings API error:', recordingsResponse.status, errorText);
+          } catch (e) {
+            errorText = 'Could not read error response';
+            console.error('Zoom recordings API error:', recordingsResponse.status, 'Could not read response body');
+          }
         }
         
         if (status === 401) {

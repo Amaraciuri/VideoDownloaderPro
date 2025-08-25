@@ -1705,14 +1705,17 @@ export default function Home() {
                       </a>
                     </p>
                     <p><strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin, user:read:admin</p>
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                      <p><strong>⚠️ TROUBLESHOOTING 401 ERRORS:</strong></p>
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                      <p><strong>⚠️ SCOPES NON CONFIGURATI CORRETTAMENTE!</strong></p>
                       <ol className="list-decimal list-inside mt-1 space-y-1">
-                        <li>Verify all 4 scopes are checked ✅ in your Zoom app</li>
-                        <li>Make sure your app is <strong>"Activated"</strong> (not just saved)</li>
-                        <li>Try <strong>"Continue"</strong> to complete app setup if it's still in development</li>
-                        <li>Some accounts need admin approval - check with your Zoom admin</li>
-                        <li>Wait 5-10 minutes after scope changes for them to take effect</li>
+                        <li><strong>Vai al tuo Zoom app → Scopes tab</strong></li>
+                        <li><strong>DESELEZIONA</strong> tutti i scope "marketplace"</li>
+                        <li><strong>SELEZIONA SOLO</strong> questi 4 cloud_recording scope:</li>
+                        <li className="ml-4 text-xs font-mono">cloud_recording:read:list_user_recordings:admin</li>
+                        <li className="ml-4 text-xs font-mono">cloud_recording:read:list_account_recordings:admin</li>
+                        <li className="ml-4 text-xs font-mono">cloud_recording:read:recording:admin</li>
+                        <li className="ml-4 text-xs font-mono">user:read:admin</li>
+                        <li><strong>SALVA</strong> e <strong>ATTIVA</strong> l'app!</li>
                       </ol>
                     </div>
                   </div>
