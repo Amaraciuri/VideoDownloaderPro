@@ -2450,7 +2450,7 @@ export default function Home() {
                     </a>
                   </li>
                   <li>
-                    <strong>Required permissions:</strong> Make sure your API key has video management and folder access
+                    <strong>Required permissions:</strong> Select "Viewer" (for reading videos and folders) and optionally "Editor" (for metadata access)
                   </li>
                   <li>Enter your API secret key and choose one of two options:</li>
                   <li className="ml-4">

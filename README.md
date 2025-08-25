@@ -92,7 +92,7 @@ Each platform requires different credentials:
 
 #### VdoCipher
 - Get your API secret key from VdoCipher Dashboard → API Keys
-- Required permissions: Video management and folder access
+- Required permissions: Select "Viewer" (for reading videos and folders) and optionally "Editor" (for metadata access)
 
 ### 3. Load Your Content
 Choose one of two options:
