@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Zoom API proxy routes (to handle OAuth and API calls)
   app.get("/api/zoom/recordings", async (req, res) => {
     try {
-      const { apiKey, apiSecret } = req.query;
+      const { apiKey, apiSecret, accountId } = req.query;
       
       if (!apiKey || !apiSecret || typeof apiKey !== 'string' || typeof apiSecret !== 'string') {
         return res.status(400).json({ error: "Zoom API Key and API Secret are required" });
@@ -376,18 +376,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Step 1: Get OAuth token for Server-to-Server auth
       const credentials = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
       
+      // For Server-to-Server OAuth, we need to include account_id if available
+      let tokenBody = 'grant_type=client_credentials';
+      if (accountId && typeof accountId === 'string') {
+        tokenBody += `&account_id=${encodeURIComponent(accountId)}`;
+      }
+      
       const tokenResponse = await fetch('https://zoom.us/oauth/token', {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: 'grant_type=client_credentials'
+        body: tokenBody
       });
 
       if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('Zoom OAuth error:', tokenResponse.status, errorText);
+        
         if (tokenResponse.status === 401) {
           return res.status(401).json({ error: 'Invalid Zoom API credentials. Please check your API Key and Secret.' });
+        } else if (tokenResponse.status === 400) {
+          return res.status(400).json({ 
+            error: `Zoom OAuth failed (400): Invalid request. Make sure your app is configured as Server-to-Server OAuth type.`,
+            details: errorText
+          });
         } else {
           return res.status(tokenResponse.status).json({ error: `Zoom OAuth failed: ${tokenResponse.status}` });
         }

@@ -91,6 +91,7 @@ export default function Home() {
   const [vdocipherApiKey, setVdocipherApiKey] = useState('');
   const [zoomApiKey, setZoomApiKey] = useState('');
   const [zoomApiSecret, setZoomApiSecret] = useState('');
+  const [zoomAccountId, setZoomAccountId] = useState('');
   const [loadingZoomRecordings, setLoadingZoomRecordings] = useState(false);
   const [vdocipherFolders, setVdocipherFolders] = useState<VimeoFolder[]>([]);
   const [loadingVdocipherFolders, setLoadingVdocipherFolders] = useState(false);
@@ -892,7 +893,10 @@ export default function Home() {
 
     try {
       // Use our backend proxy to handle Zoom OAuth and API calls
-      const url = `/api/zoom/recordings?apiKey=${encodeURIComponent(zoomApiKey)}&apiSecret=${encodeURIComponent(zoomApiSecret)}`;
+      let url = `/api/zoom/recordings?apiKey=${encodeURIComponent(zoomApiKey)}&apiSecret=${encodeURIComponent(zoomApiSecret)}`;
+      if (zoomAccountId.trim()) {
+        url += `&accountId=${encodeURIComponent(zoomAccountId)}`;
+      }
       
       const response = await fetch(url);
 
@@ -1679,14 +1683,30 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  <p className="text-xs text-gray-500">
-                    Create a Server-to-Server OAuth app at{" "}
-                    <a href="https://marketplace.zoom.us/develop/create" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      Zoom Marketplace → Develop → Create App
-                    </a>
-                    <br />
-                    <strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin
-                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="zoom-account-id">Zoom Account ID (Optional)</Label>
+                    <Input
+                      id="zoom-account-id"
+                      type="text"
+                      value={zoomAccountId}
+                      onChange={(e) => setZoomAccountId(e.target.value)}
+                      placeholder="Enter your Zoom Account ID (if required)"
+                      data-testid="input-zoom-account-id"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Account ID may be required for some Server-to-Server OAuth apps. Find it in your Zoom App credentials.
+                    </p>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <p>Create a Server-to-Server OAuth app at{" "}
+                      <a href="https://marketplace.zoom.us/develop/create" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        Zoom Marketplace → Develop → Create App
+                      </a>
+                    </p>
+                    <p><strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin</p>
+                    <p><strong>Note:</strong> If you get a 400 error, make sure your app type is "Server-to-Server OAuth" and try adding your Account ID above.</p>
+                  </div>
                 </div>
               </>
             )}
