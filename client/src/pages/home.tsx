@@ -1685,7 +1685,7 @@ export default function Home() {
                       Zoom Marketplace → Develop → Create App
                     </a>
                     <br />
-                    <strong>Required scopes:</strong> recording:read:admin, recording:write:admin, user:read:admin
+                    <strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin
                   </p>
                 </div>
               </>
@@ -2666,7 +2666,7 @@ export default function Home() {
                     Select "Server-to-Server OAuth" app type for automated access without user interaction
                   </li>
                   <li>
-                    <strong>Required scopes:</strong> recording:read:admin, recording:write:admin, user:read:admin, meeting:read:admin
+                    <strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin
                   </li>
                   <li>Copy your Client ID (API Key) and Client Secret (API Secret) from the app credentials</li>
                   <li>Enter both credentials and click "Load All Recordings" to fetch all your cloud recordings</li>
