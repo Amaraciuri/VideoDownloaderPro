@@ -78,7 +78,7 @@ export default function Home() {
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [allVideosLoaded, setAllVideosLoaded] = useState<VimeoVideo[]>([]);
-  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher'>('vimeo');
+  const [provider, setProvider] = useState<'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher' | 'zoom'>('vimeo');
   const [bunnyApiKey, setBunnyApiKey] = useState('');
   const [bunnyStorageZone, setBunnyStorageZone] = useState('');
   const [bunnyStreamApiKey, setBunnyStreamApiKey] = useState('');
@@ -89,12 +89,15 @@ export default function Home() {
   const [wistiaProjects, setWistiaProjects] = useState<VimeoFolder[]>([]);
   const [loadingWistiaProjects, setLoadingWistiaProjects] = useState(false);
   const [vdocipherApiKey, setVdocipherApiKey] = useState('');
+  const [zoomApiKey, setZoomApiKey] = useState('');
+  const [zoomApiSecret, setZoomApiSecret] = useState('');
+  const [loadingZoomRecordings, setLoadingZoomRecordings] = useState(false);
   const [vdocipherFolders, setVdocipherFolders] = useState<VimeoFolder[]>([]);
   const [loadingVdocipherFolders, setLoadingVdocipherFolders] = useState(false);
   const { toast } = useToast();
 
   // Get security notice message based on selected provider
-  const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher') => {
+  const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher' | 'zoom') => {
     switch (provider) {
       case 'vimeo':
         return 'Use your own Vimeo API token and respect Vimeo\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
@@ -106,6 +109,8 @@ export default function Home() {
         return 'Use your own Wistia API token and respect Wistia\'s terms of service. Your API token is stored temporarily in memory only and is not saved to your device.';
       case 'vdocipher':
         return 'Use your own VdoCipher API secret key and respect VdoCipher\'s terms of service. Your API key is stored temporarily in memory only and is not saved to your device.';
+      case 'zoom':
+        return 'Use your own Zoom Server-to-Server OAuth app credentials and respect Zoom\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
       default:
         return 'Use your own API credentials and respect the service\'s terms of service. Your API credentials are stored temporarily in memory only and are not saved to your device.';
     }
@@ -872,6 +877,80 @@ export default function Home() {
     }
   };
 
+  // Fetch recordings from Zoom API
+  const fetchZoomRecordings = async () => {
+    if (!zoomApiKey.trim() || !zoomApiSecret.trim()) {
+      setError('Please enter both Zoom API Key and API Secret');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setVideos([]);
+    setAllVideosLoaded([]);
+
+    try {
+      // Use our backend proxy to handle Zoom OAuth and API calls
+      const url = `/api/zoom/recordings?apiKey=${encodeURIComponent(zoomApiKey)}&apiSecret=${encodeURIComponent(zoomApiSecret)}`;
+      
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Convert Zoom recordings to our video format
+      const videoList: VimeoVideo[] = data.meetings?.reduce((acc: VimeoVideo[], meeting: any) => {
+        const meetingRecordings = meeting.recording_files?.map((recording: any) => ({
+          title: `${meeting.topic || 'Untitled Meeting'} - ${recording.recording_type?.replace(/_/g, ' ') || 'Recording'}`,
+          link: recording.play_url || recording.download_url || '#',
+          downloadLink: recording.download_url || 'Contact Zoom Admin',
+          videoId: `${meeting.uuid}_${recording.id}`,
+          thumbnailUrl: null, // Zoom doesn't provide thumbnails via API
+          duration: recording.file_size ? Math.round(recording.file_size / 1000000) : 0, // Convert bytes to MB as rough duration
+          description: `Meeting: ${meeting.topic || 'Untitled'} | Date: ${meeting.start_time?.split('T')[0] || 'Unknown'} | Type: ${recording.recording_type || 'Unknown'} | Password: ${meeting.password || 'None'}`,
+          password: meeting.password || null
+        })) || [];
+        
+        return acc.concat(meetingRecordings);
+      }, []) || [];
+
+      // Sort recordings by title
+      const sortedVideoList = videoList.sort((a, b) => {
+        return a.title.localeCompare(b.title, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      });
+
+      // Load existing AI titles from database
+      const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
+      setAllVideosLoaded(videosWithAiTitles);
+      setVideos(videosWithAiTitles);
+      
+      setSuccess(`Successfully fetched ${sortedVideoList.length} recordings from your Zoom account`);
+      toast({
+        title: "Success",
+        description: `Fetched ${sortedVideoList.length} recordings successfully`,
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch videos from Bunny.net Stream API
   const fetchBunnyStreamVideos = async () => {
     if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
@@ -974,6 +1053,11 @@ export default function Home() {
     
     if (provider === 'vdocipher') {
       fetchVdocipherVideos();
+      return;
+    }
+    
+    if (provider === 'zoom') {
+      fetchZoomRecordings();
       return;
     }
 
@@ -1293,7 +1377,7 @@ export default function Home() {
             {/* Provider Selection */}
             <div className="space-y-2">
               <Label htmlFor="provider-select">Video Provider</Label>
-              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia') => {
+              <Select value={provider} onValueChange={(value: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher' | 'zoom') => {
                 setProvider(value);
                 // Clear data when switching providers
                 setVideos([]);
@@ -1301,9 +1385,16 @@ export default function Home() {
                 setFolders([]);
                 setBunnyCollections([]);
                 setWistiaProjects([]);
+                setVdocipherFolders([]);
                 setSelectedFolder(null);
                 setError('');
                 setSuccess('');
+                setLoadingFolders(false);
+                setLoadingBunnyCollections(false);
+                setLoadingWistiaProjects(false);
+                setLoadingVdocipherFolders(false);
+                setLoadingZoomRecordings(false);
+                setLoading(false);
               }} data-testid="select-provider">
                 <SelectTrigger>
                   <SelectValue placeholder="Choose your video provider" />
@@ -1314,6 +1405,7 @@ export default function Home() {
                   <SelectItem value="bunny-stream">Bunny.net Stream</SelectItem>
                   <SelectItem value="wistia">Wistia</SelectItem>
                   <SelectItem value="vdocipher">VdoCipher</SelectItem>
+                  <SelectItem value="zoom">Zoom Recordings</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1528,6 +1620,72 @@ export default function Home() {
                     </a>
                     <br />
                     <strong>Required permissions:</strong> Video management and folder access
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Zoom API Input */}
+            {provider === 'zoom' && (
+              <>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="zoom-api-key">Zoom API Key (Client ID)</Label>
+                    <div className="relative">
+                      <Input
+                        id="zoom-api-key"
+                        type={showToken ? "text" : "password"}
+                        value={zoomApiKey}
+                        onChange={(e) => setZoomApiKey(e.target.value)}
+                        placeholder="Enter your Zoom API Key (Client ID)"
+                        className="pr-10"
+                        data-testid="input-zoom-api-key"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowToken(!showToken)}
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        data-testid="button-toggle-zoom-token-visibility"
+                      >
+                        {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="zoom-api-secret">Zoom API Secret (Client Secret)</Label>
+                    <div className="relative">
+                      <Input
+                        id="zoom-api-secret"
+                        type={showToken ? "text" : "password"}
+                        value={zoomApiSecret}
+                        onChange={(e) => setZoomApiSecret(e.target.value)}
+                        placeholder="Enter your Zoom API Secret (Client Secret)"
+                        className="pr-10"
+                        data-testid="input-zoom-api-secret"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowToken(!showToken)}
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        data-testid="button-toggle-zoom-secret-visibility"
+                      >
+                        {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500">
+                    Create a Server-to-Server OAuth app at{" "}
+                    <a href="https://marketplace.zoom.us/develop/create" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Zoom Marketplace → Develop → Create App
+                    </a>
+                    <br />
+                    <strong>Required scopes:</strong> recording:read:admin, recording:write:admin, user:read:admin
                   </p>
                 </div>
               </>
@@ -1760,6 +1918,36 @@ export default function Home() {
                   </div>
                   <p className="text-xs text-gray-500">
                     Load folders OR load all videos directly from your VdoCipher account
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Zoom Buttons */}
+            {provider === 'zoom' && (
+              <>
+                <div className="space-y-2">
+                  <Button
+                    onClick={fetchAllVideos}
+                    disabled={loading || !zoomApiKey.trim() || !zoomApiSecret.trim()}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-load-zoom-recordings"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Video className="h-4 w-4 mr-2" />
+                        Load All Recordings
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Load all your Zoom cloud recordings from your account
                   </p>
                 </div>
               </>
@@ -2340,7 +2528,7 @@ export default function Home() {
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription>
             <h3 className="text-lg font-semibold text-blue-900 mb-3">
-              How to Use This App
+              How to Use This App - 6 Providers Supported!
             </h3>
             <div className="text-blue-800 space-y-2 text-sm">
               {provider === 'vimeo' && (
@@ -2462,6 +2650,30 @@ export default function Home() {
                   <li>Review the video list and click "Export to Excel" to download the data</li>
                   <li>
                     <strong>Tip:</strong> VdoCipher provides secure video streaming with detailed analytics and DRM protection
+                  </li>
+                </ol>
+              )}
+
+              {provider === 'zoom' && (
+                <ol className="space-y-2 list-decimal list-inside">
+                  <li>
+                    Create a Server-to-Server OAuth app at{" "}
+                    <a href="https://marketplace.zoom.us/develop/create" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
+                      Zoom Marketplace → Develop → Create App
+                    </a>
+                  </li>
+                  <li>
+                    Select "Server-to-Server OAuth" app type for automated access without user interaction
+                  </li>
+                  <li>
+                    <strong>Required scopes:</strong> recording:read:admin, recording:write:admin, user:read:admin, meeting:read:admin
+                  </li>
+                  <li>Copy your Client ID (API Key) and Client Secret (API Secret) from the app credentials</li>
+                  <li>Enter both credentials and click "Load All Recordings" to fetch all your cloud recordings</li>
+                  <li>Review the recordings list with meeting details, passwords (when available), and direct links</li>
+                  <li>Click "Export to Excel" to download all recording metadata including meeting passwords</li>
+                  <li>
+                    <strong>Tip:</strong> Password-protected recordings show the passcode when available via API - no more hunting for meeting passwords!
                   </li>
                 </ol>
               )}

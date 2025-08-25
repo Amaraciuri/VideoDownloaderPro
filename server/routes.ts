@@ -364,6 +364,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Zoom API proxy routes (to handle OAuth and API calls)
+  app.get("/api/zoom/recordings", async (req, res) => {
+    try {
+      const { apiKey, apiSecret } = req.query;
+      
+      if (!apiKey || !apiSecret || typeof apiKey !== 'string' || typeof apiSecret !== 'string') {
+        return res.status(400).json({ error: "Zoom API Key and API Secret are required" });
+      }
+
+      // Step 1: Get OAuth token for Server-to-Server auth
+      const credentials = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
+      
+      const tokenResponse = await fetch('https://zoom.us/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'grant_type=client_credentials'
+      });
+
+      if (!tokenResponse.ok) {
+        if (tokenResponse.status === 401) {
+          return res.status(401).json({ error: 'Invalid Zoom API credentials. Please check your API Key and Secret.' });
+        } else {
+          return res.status(tokenResponse.status).json({ error: `Zoom OAuth failed: ${tokenResponse.status}` });
+        }
+      }
+
+      const tokenData = await tokenResponse.json();
+      const accessToken = tokenData.access_token;
+
+      // Step 2: Get recordings from Zoom API
+      const recordingsResponse = await fetch('https://api.zoom.us/v2/users/me/recordings', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!recordingsResponse.ok) {
+        if (recordingsResponse.status === 401) {
+          return res.status(401).json({ error: 'Invalid Zoom access token or insufficient permissions.' });
+        } else {
+          return res.status(recordingsResponse.status).json({ error: `Zoom API request failed: ${recordingsResponse.status}` });
+        }
+      }
+
+      const recordingsData = await recordingsResponse.json();
+      res.json(recordingsData);
+      
+    } catch (error) {
+      console.error("Zoom recordings error:", error);
+      res.status(500).json({ error: "Failed to fetch Zoom recordings" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
