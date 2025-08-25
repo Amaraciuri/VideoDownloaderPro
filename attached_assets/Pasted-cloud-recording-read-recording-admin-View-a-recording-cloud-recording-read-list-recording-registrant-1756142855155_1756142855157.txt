@@ -1,0 +1,127 @@
+cloud_recording:read:recording:admin
+View a recording
+cloud_recording:read:list_recording_registrants:admin
+Use this API to list registrants of a past meeting's on-demand cloud recordings. Users must register to view the recordings.
+cloud_recording:read:recording_analytics_details:admin
+get record analytics details
+archiving:read:archive_files:admin
+View an archiving recording
+cloud_recording:read:registrant:admin
+Cloud recording Registration
+cloud_recording:read:list_user_recordings:admin
+Lists all cloud recordings for a user.
+cloud_recording:read:recording_settings:admin
+Retrieves settings applied to a meeting's Cloud Recording.
+cloud_recording:read:recording_analytics_summary:admin
+Use this API to return a meeting recording's analytics summary.
+cloud_recording:read:registration_questions:admin
+Use this API to retrieve a list of questions that are displayed for users to complete when registering to view the recording of a specific meeting.
+cloud_recording:read:archive_files:admin
+Read archiving recordings
+cloud_recording:read:list_recording_files:admin
+Returns all of a meeting's recordings.
+cloud_recording:read:list_account_recordings:admin
+list account recording
+archiving:read:archived_file_statistics:admin
+Get statistics about an account's archived meeting or webinar files.
+View and manage all user recordings
+cloud_recording:update:recover_meeting_recordings:admin
+Recover meeting recordings
+cloud_recording:update:recover_single_recording:admin
+Recover a single recording
+archiving:delete:archived_files:admin
+Use this API to delete all of a meeting's archived files.
+cloud_recording:update:registrant_status:admin
+A registrant can either be approved or denied from viewing the on-demand recording. Use this API to update a registrant's status.
+cloud_recording:delete:recording_file:admin
+Delete a specific recording file from a meeting
+cloud_recording:delete:meeting_transcript:admin
+Delete meeting transcript
+cloud_recording:write:recording_registrant:admin
+Use this API to register a user to gain access to On-demand Cloud Recordings of a past meeting.
+cloud_recording:delete:meeting_recording:admin
+Delete all recording files of a meeting.
+cloud_recording:write:trimming_recording:admin
+trimming recording
+archiving:update:archived_file_auto_delete_status:admin
+Update an archived file's auto-delete status
+cloud_recording:update:recording_settings:admin
+Updates settings applied to a meeting's Cloud Recording.
+cloud_recording:update:registration_questions:admin
+Update registration questions
+View and manage sub account's user recordings
+archiving:read:archive_files:master
+View an archiving recording
+cloud_recording:read:list_recording_registrants:master
+Use this API to list registrants of a past meeting's on-demand cloud recordings. Users must register to view the recordings.
+cloud_recording:update:recording_settings:master
+Updates settings applied to a meeting's Cloud Recording.
+cloud_recording:read:recording_analytics_summary:master
+Use this API to return a meeting recording's analytics summary.
+cloud_recording:read:recording_settings:master
+Retrieves settings applied to a meeting's Cloud Recording.
+cloud_recording:write:recording_registrant:master
+Use this API to register a user to gain access to On-demand Cloud Recordings of a past meeting.
+cloud_recording:read:recording:master
+View a recording
+cloud_recording:read:registrant:master
+Cloud recording Registration
+cloud_recording:update:recover_single_recording:master
+Recover a single recording
+cloud_recording:read:list_account_recordings:master
+list account recording
+cloud_recording:read:list_recording_files:master
+Returns all of a meeting's recordings.
+cloud_recording:read:list_user_recordings:master
+Lists all cloud recordings for a user.
+cloud_recording:update:registrant_status:master
+A registrant can either be approved or denied from viewing the on-demand recording. Use this API to update a registrant's status.
+cloud_recording:update:recover_meeting_recordings:master
+Recover meeting recordings
+cloud_recording:update:registration_questions:master
+Update registration questions
+cloud_recording:read:registration_questions:master
+Use this API to retrieve a list of questions that are displayed for users to complete when registering to view the recording of a specific meeting.
+cloud_recording:read:recording_analytics_details:master
+get record analytics details
+User
+View all user information
+user:read:summary:admin
+View user summary
+user:read:clocked_out_user:admin
+Clock out a user
+user:read:personal_note:admin
+View a user's personal note
+user:read:list_permissions:admin
+View a user's permissions
+user:read:clocked_in_user:admin
+Clock in a user
+user:read:presence_status:admin
+View a user's presence status
+user:read:meeting_template_detail:admin
+get user's meeting template detail
+user:read:list_schedulers:admin
+View a user's schedulers
+user:read:pm_room:admin
+Verify a user's personal meeting room
+user:read:list_collaboration_devices:admin
+View a user's collaboration devices
+user:read:collaboration_device:admin
+View a user's collaboration device
+user:read:token:admin
+View a user's token
+user:read:email:admin
+Verify a user's email
+user:read:list_assistants:admin
+View a user's assistants
+View all user's plan
+billing:read:user_entitlement:admin
+View a user
+View and manage sub account's user information
+user:read:list_users:master
+View users
+user:read:token:master
+View a user's token
+View user’s zak token
+user:read:zak:admin
+View a user's Zoom Access Key

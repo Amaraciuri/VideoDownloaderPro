@@ -2698,7 +2698,9 @@ export default function Home() {
                     <strong>Required scopes:</strong> cloud_recording:read:list_user_recordings:admin, cloud_recording:read:list_account_recordings:admin, cloud_recording:read:recording:admin, user:read:admin
                   </li>
                   <li>Copy your Client ID (API Key) and Client Secret (API Secret) from the app credentials</li>
+                  <li><strong>Make sure your app is "Activated" (not just saved as draft)</strong></li>
                   <li>Enter both credentials and click "Load All Recordings" to fetch all your cloud recordings</li>
+                  <li>The system will automatically try different API endpoints to find your recordings</li>
                   <li>Review the recordings list with meeting details, passwords (when available), and direct links</li>
                   <li>Click "Export to Excel" to download all recording metadata including meeting passwords</li>
                   <li>
