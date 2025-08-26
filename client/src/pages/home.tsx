@@ -17,6 +17,7 @@ interface VimeoVideo {
   thumbnailUrl?: string;
   aiTitle?: string;
   videoId?: string;
+  duration?: number; // Duration in seconds
 }
 
 interface VimeoFolder {
@@ -33,6 +34,7 @@ interface VimeoApiResponse {
     name: string;
     link: string;
     uri: string;
+    duration?: number; // Duration in seconds
     pictures?: {
       sizes: Array<{
         width: number;
@@ -96,6 +98,16 @@ export default function Home() {
   const [vdocipherFolders, setVdocipherFolders] = useState<VimeoFolder[]>([]);
   const [loadingVdocipherFolders, setLoadingVdocipherFolders] = useState(false);
   const { toast } = useToast();
+
+  // Format duration from seconds to MM:SS format
+  const formatDuration = (durationInSeconds?: number): string => {
+    if (!durationInSeconds || durationInSeconds <= 0) return 'N/A';
+    
+    const minutes = Math.floor(durationInSeconds / 60);
+    const seconds = Math.floor(durationInSeconds % 60);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   // Get security notice message based on selected provider
   const getSecurityNoticeMessage = (provider: 'vimeo' | 'bunny' | 'bunny-stream' | 'wistia' | 'vdocipher' | 'zoom') => {
@@ -1131,7 +1143,8 @@ export default function Home() {
             link: video.link,
             downloadLink: video.download ? video.download[0]?.link : 'Not available',
             videoId,
-            thumbnailUrl
+            thumbnailUrl,
+            duration: video.duration // Duration in seconds from Vimeo API
           };
         });
         
@@ -1250,7 +1263,8 @@ export default function Home() {
             link: video.link,
             downloadLink: video.download ? video.download[0]?.link : 'Not available',
             videoId,
-            thumbnailUrl
+            thumbnailUrl,
+            duration: video.duration // Duration in seconds from Vimeo API
           };
         });
         
@@ -1309,8 +1323,14 @@ export default function Home() {
     try {
       // Create worksheet data
       const worksheetData = [
-        ['Original Title', 'AI Title', 'Video Link', 'Download Link'],
-        ...videos.map(video => [video.title, video.aiTitle || '', video.link, video.downloadLink])
+        ['Original Title', 'AI Title', 'Duration', 'Video Link', 'Download Link'],
+        ...videos.map(video => [
+          video.title, 
+          video.aiTitle || '', 
+          formatDuration(video.duration),
+          video.link, 
+          video.downloadLink
+        ])
       ];
 
       // Create workbook and worksheet using SheetJS
@@ -2400,6 +2420,7 @@ export default function Home() {
                     <TableRow>
                       <TableHead>Original Title</TableHead>
                       <TableHead>AI Title</TableHead>
+                      <TableHead>Duration</TableHead>
                       <TableHead>Video Link</TableHead>
                       <TableHead>Download Link</TableHead>
                       <TableHead>Azioni</TableHead>
@@ -2471,6 +2492,11 @@ export default function Home() {
                               <span>AI Bloccata</span>
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell data-testid={`text-duration-${index}`}>
+                          <span className="text-gray-600 font-mono text-sm">
+                            {formatDuration(video.duration)}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <a 
