@@ -427,7 +427,8 @@ export default function Home() {
         link: `https://${bunnyStorageZone}.b-cdn.net/${file.ObjectName}`,
         downloadLink: `https://storage.bunnycdn.com/${bunnyStorageZone}/${file.ObjectName}`,
         videoId: file.Guid || file.ObjectName,
-        thumbnailUrl: undefined // Bunny.net doesn't provide thumbnails by default
+        thumbnailUrl: undefined, // Bunny.net Storage doesn't provide thumbnails by default
+        duration: undefined // Bunny.net Storage API doesn't provide duration info
       }));
 
       // Sort videos by title
@@ -1032,7 +1033,8 @@ export default function Home() {
             link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
             downloadLink: video.mp4Url || null,
             videoId: video.guid,
-            thumbnailUrl
+            thumbnailUrl,
+            duration: video.length || video.duration // Duration in seconds from Bunny.net API
           };
         });
 
