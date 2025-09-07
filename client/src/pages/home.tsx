@@ -967,7 +967,7 @@ export default function Home() {
     }
   };
 
-  // Fetch videos from Bunny.net Stream API
+  // Fetch videos from Bunny.net Stream API with pagination support
   const fetchBunnyStreamVideos = async () => {
     if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim()) {
       setError('Please enter Bunny.net Stream API key and Library ID');
@@ -982,41 +982,65 @@ export default function Home() {
     setSelectedFolder(null);
 
     try {
-      // Bunny.net Stream API endpoint - with collection filter if folder is selected
-      let url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos`;
-      if (selectedFolder) {
-        url += `?collection=${selectedFolder.uri}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'AccessKey': bunnyStreamApiKey,
-        }
-      });
+      // Fetch all videos with pagination support
+      let allVideos: VimeoVideo[] = [];
+      let currentPage = 1;
+      let hasMorePages = true;
+      const perPage = 100; // Bunny.net's default page size
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid Bunny.net Stream API key. Please check your credentials.');
-        } else if (response.status === 404) {
-          throw new Error('Library not found. Please check the Library ID.');
-        } else {
-          throw new Error(`Bunny.net Stream API request failed: ${response.status}`);
+      while (hasMorePages) {
+        // Update success message to show progress
+        setSuccess(`Fetching videos from Bunny.net... Page ${currentPage} (${allVideos.length} videos loaded so far)`);
+        
+        // Bunny.net Stream API endpoint with pagination
+        let url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos?page=${currentPage}&itemsPerPage=${perPage}`;
+        if (selectedFolder) {
+          url += `&collection=${selectedFolder.uri}`;
+        }
+        
+        const response = await fetch(url, {
+          headers: {
+            'AccessKey': bunnyStreamApiKey,
+          }
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Invalid Bunny.net Stream API key. Please check your credentials.');
+          } else if (response.status === 404) {
+            throw new Error('Library not found. Please check the Library ID.');
+          } else {
+            throw new Error(`Bunny.net Stream API request failed: ${response.status}`);
+          }
+        }
+
+        const data = await response.json();
+        
+        // Extract video information from this page
+        const pageVideos: VimeoVideo[] = data.items.map((video: any) => ({
+          title: video.title || 'Untitled Video',
+          link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
+          downloadLink: video.mp4Url || null,
+          videoId: video.guid,
+          thumbnailUrl: video.thumbnailUrl
+        }));
+
+        // Add to total collection
+        allVideos = [...allVideos, ...pageVideos];
+        
+        // Check if we have more pages based on response
+        // Bunny.net typically includes pagination info or we check if we got less than perPage
+        hasMorePages = pageVideos.length === perPage && data.items && data.items.length === perPage;
+        currentPage++;
+        
+        // Small delay to be nice to the API
+        if (hasMorePages) {
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
-
-      const data = await response.json();
-      
-      // Convert to our video format
-      const videoList: VimeoVideo[] = data.items.map((video: any) => ({
-        title: video.title || 'Untitled Video',
-        link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
-        downloadLink: video.mp4Url || null,
-        videoId: video.guid,
-        thumbnailUrl: video.thumbnailUrl
-      }));
 
       // Sort videos by title
-      const sortedVideoList = videoList.sort((a, b) => {
+      const sortedVideoList = allVideos.sort((a, b) => {
         return a.title.localeCompare(b.title, undefined, {
           numeric: true,
           sensitivity: 'base'
