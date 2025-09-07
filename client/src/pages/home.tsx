@@ -139,12 +139,12 @@ export default function Home() {
 
   // Regenerate thumbnail for all videos in bulk
   const regenerateThumbnailsBulk = async () => {
-    const videosWithoutThumbs = videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream');
+    const videosToProcess = videos.filter(v => provider === 'bunny-stream' && v.videoId);
     
-    if (videosWithoutThumbs.length === 0) {
+    if (videosToProcess.length === 0) {
       toast({
         title: "No Videos to Process",
-        description: "All videos already have thumbnails or no Bunny.net Stream videos found",
+        description: "No Bunny.net Stream videos found",
       });
       return;
     }
@@ -153,7 +153,7 @@ export default function Home() {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const video of videosWithoutThumbs) {
+    for (const video of videosToProcess) {
       try {
         // Use the correct Bunny.net thumbnail pattern (direct image URL)
         const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
@@ -2602,7 +2602,7 @@ export default function Home() {
                   {provider === 'bunny-stream' && (
                     <Button
                       onClick={regenerateThumbnailsBulk}
-                      disabled={bulkThumbnailProcessing || videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream').length === 0}
+                      disabled={bulkThumbnailProcessing || videos.filter(v => provider === 'bunny-stream' && v.videoId).length === 0}
                       variant="outline"
                       className="bg-orange-50 hover:bg-orange-100 border-orange-200"
                       data-testid="button-regenerate-all-thumbnails"
@@ -2615,7 +2615,7 @@ export default function Home() {
                       ) : (
                         <>
                           <RefreshCw className="h-4 w-4 mr-2" />
-                          Gen All Thumbs ({videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream').length})
+                          Regen All Thumbs ({videos.filter(v => provider === 'bunny-stream' && v.videoId).length})
                         </>
                       )}
                     </Button>
