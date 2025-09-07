@@ -199,6 +199,22 @@ export default function Home() {
       savedThumbnails[video.videoId] = updatedThumbnailUrl;
       localStorage.setItem('bunnynet_thumbnails', JSON.stringify(savedThumbnails));
 
+      // Also save to database for persistent storage
+      try {
+        await fetch('/api/save-thumbnail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.videoId,
+            thumbnailUrl: updatedThumbnailUrl,
+            originalTitle: video.title
+          })
+        });
+        console.log('Thumbnail URL saved to database');
+      } catch (err) {
+        console.error('Failed to save thumbnail to database:', err);
+      }
+
       toast({
         title: "Thumbnail Regenerated",
         description: `Thumbnail generated for "${video.title}". You can now use AI analysis!`,
@@ -256,10 +272,15 @@ export default function Home() {
 
       if (response.ok) {
         const data = await response.json();
-        return videoList.map(video => ({
-          ...video,
-          aiTitle: data.titles[video.videoId!] || video.aiTitle
-        }));
+        return videoList.map(video => {
+          const aiRecord = data.records?.find((r: any) => r.videoId === video.videoId);
+          return {
+            ...video,
+            aiTitle: data.titles[video.videoId!] || video.aiTitle,
+            // Use thumbnail URL from database if available (overrides the original)
+            thumbnailUrl: aiRecord?.thumbnailUrl || video.thumbnailUrl
+          };
+        });
       }
     } catch (err) {
       console.error('Error loading existing AI titles:', err);

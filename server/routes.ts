@@ -28,6 +28,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save regenerated thumbnail URL endpoint
+  app.post("/api/save-thumbnail", async (req, res) => {
+    try {
+      const { videoId, thumbnailUrl, originalTitle } = req.body;
+
+      if (!videoId || !thumbnailUrl) {
+        return res.status(400).json({ error: "Video ID and thumbnail URL are required" });
+      }
+
+      // Check if record exists
+      const existingRecord = await db.select().from(aiTitles).where(eq(aiTitles.videoId, videoId)).limit(1);
+
+      if (existingRecord.length > 0) {
+        // Update existing record
+        await db.update(aiTitles)
+          .set({ 
+            thumbnailUrl: thumbnailUrl,
+            updatedAt: new Date()
+          })
+          .where(eq(aiTitles.videoId, videoId));
+      } else {
+        // Create new record
+        await db.insert(aiTitles).values({
+          videoId,
+          originalTitle: originalTitle || '',
+          aiTitle: '', // Empty for now
+          thumbnailUrl: thumbnailUrl,
+          confidence: '0.0'
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving thumbnail:", error);
+      res.status(500).json({ error: "Failed to save thumbnail URL" });
+    }
+  });
+
   // AI thumbnail analysis endpoint
   app.post("/api/analyze-thumbnail", async (req, res) => {
     try {
@@ -142,19 +180,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create a map of video ID to AI title for easier lookup
       const titleMap: Record<string, string> = {};
+      const allRecords: any[] = [];
+      
       for (const videoId of videoIds) {
-        const title = await db
+        const records = await db
           .select()
           .from(aiTitles)
           .where(eq(aiTitles.videoId, videoId))
           .limit(1);
         
-        if (title.length > 0) {
-          titleMap[videoId] = title[0].aiTitle;
+        if (records.length > 0) {
+          const record = records[0];
+          titleMap[videoId] = record.aiTitle;
+          allRecords.push(record);
         }
       }
 
-      res.json({ titles: titleMap });
+      res.json({ 
+        titles: titleMap,
+        records: allRecords // Include full records with thumbnail URLs
+      });
 
     } catch (error) {
       console.error("Error fetching AI titles:", error);
