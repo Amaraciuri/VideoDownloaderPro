@@ -71,36 +71,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { videoId, bunnyStreamApiKey, bunnyLibraryId } = req.body;
       
+      console.log('Received request for signed URL:', { videoId, hasApiKey: !!bunnyStreamApiKey, bunnyLibraryId });
+      
       if (!videoId || !bunnyStreamApiKey || !bunnyLibraryId) {
+        console.error('Missing parameters:', { videoId: !!videoId, bunnyStreamApiKey: !!bunnyStreamApiKey, bunnyLibraryId: !!bunnyLibraryId });
         return res.status(400).json({ 
           error: 'Missing required parameters: videoId, bunnyStreamApiKey, bunnyLibraryId' 
         });
       }
 
-      // Create signed URL for Bunny.net thumbnail
-      const crypto = require('crypto');
-      const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
-      const baseUrl = `https://${playbackZoneHostname}/${videoId}/thumbnail.jpg`;
-      
-      // Generate token - Bunny.net uses security key for signing
-      const expirationTime = Math.floor(Date.now() / 1000) + (60 * 60); // 1 hour from now
-      const securityKey = bunnyStreamApiKey; // Use API key as security key for signing
-      
-      // Create the string to sign (path + expiration)
-      const pathToSign = `/${videoId}/thumbnail.jpg${expirationTime}`;
-      const hashBase64 = crypto
-        .createHmac('sha256', securityKey)
-        .update(pathToSign)
-        .digest('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-      
-      const signedUrl = `${baseUrl}?token=${hashBase64}&expires=${expirationTime}`;
-      
-      console.log('Generated signed thumbnail URL:', signedUrl);
-      
-      res.json({ signedUrl });
+      // Try a different approach - use Bunny.net Stream API to get the actual thumbnail
+      // First, get video details from the API which should include the correct thumbnail URL
+      try {
+        const videoDetailsUrl = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos/${videoId}`;
+        console.log('Fetching video details from:', videoDetailsUrl);
+        
+        const videoResponse = await fetch(videoDetailsUrl, {
+          headers: {
+            'AccessKey': bunnyStreamApiKey,
+          }
+        });
+
+        if (!videoResponse.ok) {
+          throw new Error(`Video API failed: ${videoResponse.status}`);
+        }
+
+        const videoData = await videoResponse.json();
+        console.log('Video data received:', { 
+          hasData: !!videoData, 
+          hasThumbnailFileName: !!videoData.thumbnailFileName,
+          status: videoData.status 
+        });
+
+        // Check if video has a processed thumbnail
+        if (videoData.thumbnailFileName && videoData.status >= 3) {
+          // Status >= 3 means video is processed and thumbnail should be available
+          const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
+          const thumbnailUrl = `https://${playbackZoneHostname}/${videoId}/thumbnail.jpg`;
+          
+          console.log('Returning direct thumbnail URL:', thumbnailUrl);
+          
+          // For now, try returning the direct URL - if token auth is required,
+          // we may need to implement proper Bunny.net security token generation
+          res.json({ signedUrl: thumbnailUrl });
+        } else {
+          throw new Error('Video not processed or thumbnail not available');
+        }
+
+      } catch (apiError) {
+        console.error('Error fetching video details:', apiError);
+        return res.status(500).json({ error: 'Failed to get video details from Bunny.net API' });
+      }
       
     } catch (error) {
       console.error('Error generating signed thumbnail URL:', error);
