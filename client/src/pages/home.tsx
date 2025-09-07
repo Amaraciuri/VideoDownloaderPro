@@ -72,6 +72,7 @@ export default function Home() {
   const [copiedLinks, setCopiedLinks] = useState<Set<string>>(new Set());
   const [aiAnalyzing, setAiAnalyzing] = useState<Set<string>>(new Set());
   const [bulkAiProcessing, setBulkAiProcessing] = useState(false);
+  const [bulkThumbnailProcessing, setBulkThumbnailProcessing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{processed: number, total: number, errors: number}>({processed: 0, total: 0, errors: 0});
   const [aiUnlocked, setAiUnlocked] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
@@ -134,6 +135,76 @@ export default function Home() {
   useEffect(() => {
     applyFilters();
   }, [searchQuery, dateFilter, allVideosLoaded]);
+
+  // Regenerate thumbnail for all videos in bulk
+  const regenerateThumbnailsBulk = async () => {
+    const videosWithoutThumbs = videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream');
+    
+    if (videosWithoutThumbs.length === 0) {
+      toast({
+        title: "No Videos to Process",
+        description: "All videos already have thumbnails or no Bunny.net Stream videos found",
+      });
+      return;
+    }
+
+    setBulkThumbnailProcessing(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const video of videosWithoutThumbs) {
+      try {
+        // Use the correct Bunny.net thumbnail pattern (direct image URL)
+        const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
+        const updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg`;
+        
+        // Update state
+        setVideos(prev => prev.map(v => 
+          v.videoId === video.videoId 
+            ? { ...v, thumbnailUrl: updatedThumbnailUrl }
+            : v
+        ));
+
+        setAllVideosLoaded(prev => prev.map(v => 
+          v.videoId === video.videoId 
+            ? { ...v, thumbnailUrl: updatedThumbnailUrl }
+            : v
+        ));
+
+        // Save to localStorage and database
+        const savedThumbnails = JSON.parse(localStorage.getItem('bunnynet_thumbnails') || '{}');
+        savedThumbnails[video.videoId] = updatedThumbnailUrl;
+        localStorage.setItem('bunnynet_thumbnails', JSON.stringify(savedThumbnails));
+
+        await fetch('/api/save-thumbnail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.videoId,
+            thumbnailUrl: updatedThumbnailUrl,
+            originalTitle: video.title
+          })
+        });
+
+        successCount++;
+        
+        // Small delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (err) {
+        console.error(`Failed to regenerate thumbnail for ${video.title}:`, err);
+        errorCount++;
+      }
+    }
+
+    setBulkThumbnailProcessing(false);
+    
+    toast({
+      title: "Bulk Thumbnail Generation Complete",
+      description: `✅ ${successCount} thumbnails generated, ❌ ${errorCount} errors`,
+      duration: 5000,
+    });
+  };
 
   // Regenerate thumbnail for Bunny.net Stream video
   const regenerateThumbnail = async (video: VimeoVideo) => {
@@ -2520,6 +2591,27 @@ export default function Home() {
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
                           Generate All AI Titles
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {provider === 'bunny-stream' && (
+                    <Button
+                      onClick={regenerateThumbnailsBulk}
+                      disabled={bulkThumbnailProcessing || videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream').length === 0}
+                      variant="outline"
+                      className="bg-orange-50 hover:bg-orange-100 border-orange-200"
+                      data-testid="button-regenerate-all-thumbnails"
+                    >
+                      {bulkThumbnailProcessing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating Thumbs...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Gen All Thumbs ({videos.filter(v => !v.thumbnailUrl && provider === 'bunny-stream').length})
                         </>
                       )}
                     </Button>
