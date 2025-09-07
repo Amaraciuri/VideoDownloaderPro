@@ -164,11 +164,25 @@ export default function Home() {
         throw new Error(`Failed to regenerate thumbnail: ${response.status}`);
       }
 
-      // Wait a moment for thumbnail generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const responseData = await response.json();
+      console.log('Bunny.net thumbnail response:', responseData);
 
-      // Update the video with new thumbnail URL
-      const updatedThumbnailUrl = `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
+      // Wait a moment for thumbnail generation
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Try to get the thumbnail URL from the response or use different formats
+      let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
+      
+      if (!updatedThumbnailUrl) {
+        // Try common Bunny.net thumbnail formats
+        const formats = [
+          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/thumbnail.jpg`,
+          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/play_300x200.jpg`,
+          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/play_640x360.jpg`,
+          `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?preload=metadata&thumbnail=true`
+        ];
+        updatedThumbnailUrl = formats[0] + `?v=${Date.now()}`;
+      }
       
       setVideos(prev => prev.map(v => 
         v.videoId === video.videoId 
