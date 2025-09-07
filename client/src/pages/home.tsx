@@ -1082,13 +1082,9 @@ export default function Home() {
         
         // Extract video information from this page
         const pageVideos: VimeoVideo[] = data.items.map((video: any) => {
-          // Handle thumbnail URL for Bunny.net Stream
-          // Bunny.net API may provide thumbnail in different fields
-          let thumbnailUrl = video.thumbnailUrl || video.thumbnail || video.thumbnailFileName || video.previewUrl;
-          
-          // For Bunny.net Stream, if no thumbnail is directly provided, 
-          // we'll leave it undefined to avoid invalid URLs
-          // The AI system will handle videos without thumbnails gracefully
+          // For Bunny.net Stream, we'll initially set thumbnails as undefined
+          // to force thumbnail regeneration, as the API often provides invalid URLs
+          let thumbnailUrl = undefined;
           
           return {
             title: video.title || 'Untitled Video',
