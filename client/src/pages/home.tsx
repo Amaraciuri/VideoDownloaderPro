@@ -1446,13 +1446,14 @@ export default function Home() {
     try {
       // Create worksheet data
       const worksheetData = [
-        ['Original Title', 'AI Title', 'Duration', 'Video Link', 'Download Link'],
+        ['Original Title', 'AI Title', 'Duration', 'Video Link', 'Download Link', 'Iframe Code'],
         ...videos.map(video => [
           video.title, 
           video.aiTitle || '', 
           formatDuration(video.duration),
           video.link, 
-          video.downloadLink
+          video.downloadLink,
+          video.iframeCode || '' // Include iframe code for Bunny.net Stream videos
         ])
       ];
 
