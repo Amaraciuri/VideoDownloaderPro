@@ -134,6 +134,69 @@ export default function Home() {
     applyFilters();
   }, [searchQuery, dateFilter, allVideosLoaded]);
 
+  // Regenerate thumbnail for Bunny.net Stream video
+  const regenerateThumbnail = async (video: VimeoVideo) => {
+    if (!bunnyStreamApiKey.trim() || !bunnyLibraryId.trim() || !video.videoId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Missing Bunny.net credentials or video ID",
+      });
+      return;
+    }
+
+    try {
+      // Update video with thumbnailTime to force thumbnail regeneration
+      const url = `https://video.bunnycdn.com/library/${bunnyLibraryId}/videos/${video.videoId}`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'AccessKey': bunnyStreamApiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          thumbnailTime: 5000, // Generate thumbnail at 5 seconds
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to regenerate thumbnail: ${response.status}`);
+      }
+
+      // Wait a moment for thumbnail generation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Update the video with new thumbnail URL
+      const updatedThumbnailUrl = `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
+      
+      setVideos(prev => prev.map(v => 
+        v.videoId === video.videoId 
+          ? { ...v, thumbnailUrl: updatedThumbnailUrl }
+          : v
+      ));
+
+      setAllVideosLoaded(prev => prev.map(v => 
+        v.videoId === video.videoId 
+          ? { ...v, thumbnailUrl: updatedThumbnailUrl }
+          : v
+      ));
+
+      toast({
+        title: "Thumbnail Regenerated",
+        description: `Thumbnail generated for "${video.title}". You can now use AI analysis!`,
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to regenerate thumbnail';
+      toast({
+        variant: "destructive",
+        title: "Regeneration Failed",
+        description: errorMessage,
+      });
+    }
+  };
+
   // Copy link to clipboard
   const copyToClipboard = async (link: string, videoTitle: string) => {
     try {
