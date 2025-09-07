@@ -174,11 +174,11 @@ export default function Home() {
       let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
       
       if (!updatedThumbnailUrl) {
-        // Since the CDN pattern is complex, let's use the embed approach
-        // that often works for accessing thumbnails
-        updatedThumbnailUrl = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?screenshot=true&time=5`;
+        // Use the correct Bunny.net thumbnail pattern
+        const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
+        updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
         
-        console.log('Generated embed thumbnail URL:', updatedThumbnailUrl);
+        console.log('Generated correct thumbnail URL:', updatedThumbnailUrl);
       }
       
       setVideos(prev => prev.map(v => 
@@ -1098,9 +1098,10 @@ export default function Home() {
         
         // Extract video information from this page
         const pageVideos: VimeoVideo[] = data.items.map((video: any) => {
-          // For Bunny.net Stream, we'll initially set thumbnails as undefined
-          // to force thumbnail regeneration, as the API often provides invalid URLs
-          let thumbnailUrl = undefined;
+          // Generate correct Bunny.net Stream thumbnail URL using the proper pattern
+          // Pattern: https://{PlaybackZoneHostname}/{VideoGUID}/thumbnail.jpg
+          const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net'; // Your specific hostname
+          let thumbnailUrl = `https://${playbackZoneHostname}/${video.guid}/thumbnail.jpg`;
           
           return {
             title: video.title || 'Untitled Video',

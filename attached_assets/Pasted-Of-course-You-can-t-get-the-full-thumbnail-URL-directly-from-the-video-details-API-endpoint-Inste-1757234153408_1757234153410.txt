@@ -1,0 +1,63 @@
+Of course\! You can't get the full thumbnail URL directly from the video details API endpoint. Instead, you need to **construct it** using two pieces of information:
+
+1.  Your video library's **Playback Zone Hostname**.
+2.  The specific **Video GUID** (Globally Unique Identifier).
+
+The formula is simple: `https://{PlaybackZoneHostname}/{VideoGUID}/thumbnail.jpg`
+
+-----
+
+## How to Get the Information
+
+You need to combine information from your Bunny.net dashboard and the API response.
+
+### 1\. Find Your Playback Zone Hostname
+
+This value is static for each video library. You can find it in your Bunny.net dashboard:
+
+  * Go to **Stream**.
+  * Select your **Video Library**.
+  * Click on the **API & Playback** tab.
+  * Copy the **Playback URL Hostname**. In your case, it is `vz-b4e8eb65-16e.b-cdn.net`.
+
+### 2\. Get the Video GUID from the API
+
+When you fetch the details of a video via the API (e.g., using a `GET` request to `/library/{libraryId}/videos/{videoId}`), the JSON response will contain a `guid` key. This is the Video GUID you need.
+
+Here is an example of what the API response might look like:
+
+```json
+{
+  "videoLibraryId": 12345,
+  "guid": "88f6ac04-2288-4b3d-8c9e-e61d484a8c41",
+  "title": "Maggio_2023_10.mp4",
+  "dateUploaded": "2023-05-10T10:00:00.000Z",
+  "views": 150,
+  "isPublic": false,
+  "length": 123,
+  "status": 4,
+  ...
+}
+```
+
+-----
+
+## Putting It All Together
+
+Now, just combine the two parts using the formula.
+
+  * **Playback Zone Hostname**: `vz-b4e8eb65-16e.b-cdn.net`
+  * **Video GUID**: `88f6ac04-2288-4b3d-8c9e-e61d484a8c41`
+
+**Resulting URL**:
+`https://vz-b4e8eb65-16e.b-cdn.net/88f6ac04-2288-4b3d-8c9e-e61d484a8c41/thumbnail.jpg`
+
+This same logic applies to your second video (`Agosto_2023_01.mp4`), which has the GUID `b18bb9b5-eb6b-4816-a5c8-3e56aa426450`.
+
+### Other Thumbnail Options
+
+You can also get different thumbnail sizes or even animated previews by changing the filename at the end of the URL:
+
+  * **Resized Thumbnail**: `.../{VideoGUID}/thumbnail.jpg?width=320`
+  * **Animated GIF**: `.../{VideoGUID}/preview.gif`
+  * **Animated WebP**: `.../{VideoGUID}/preview.webp`
