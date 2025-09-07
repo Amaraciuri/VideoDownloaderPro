@@ -174,14 +174,13 @@ export default function Home() {
       let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
       
       if (!updatedThumbnailUrl) {
-        // Try common Bunny.net thumbnail formats
-        const formats = [
-          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/thumbnail.jpg`,
-          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/play_300x200.jpg`,
-          `https://vz-${bunnyLibraryId}.b-cdn.net/${video.videoId}/play_640x360.jpg`,
-          `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?preload=metadata&thumbnail=true`
-        ];
-        updatedThumbnailUrl = formats[0] + `?v=${Date.now()}`;
+        // Use the correct Bunny.net thumbnail format
+        // Based on your example: https://vz-b4e8eb65-16e.b-cdn.net/
+        // Extract the first part of Library ID for the CDN subdomain
+        const libraryPrefix = bunnyLibraryId.substring(0, 8) + '-' + bunnyLibraryId.substring(8, 11);
+        updatedThumbnailUrl = `https://vz-${libraryPrefix}.b-cdn.net/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
+        
+        console.log('Generated thumbnail URL:', updatedThumbnailUrl);
       }
       
       setVideos(prev => prev.map(v => 
