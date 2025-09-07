@@ -174,13 +174,11 @@ export default function Home() {
       let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
       
       if (!updatedThumbnailUrl) {
-        // Use the correct Bunny.net thumbnail format
-        // Based on your example: https://vz-b4e8eb65-16e.b-cdn.net/
-        // Extract the first part of Library ID for the CDN subdomain
-        const libraryPrefix = bunnyLibraryId.substring(0, 8) + '-' + bunnyLibraryId.substring(8, 11);
-        updatedThumbnailUrl = `https://vz-${libraryPrefix}.b-cdn.net/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
+        // Since the CDN pattern is complex, let's use the embed approach
+        // that often works for accessing thumbnails
+        updatedThumbnailUrl = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?screenshot=true&time=5`;
         
-        console.log('Generated thumbnail URL:', updatedThumbnailUrl);
+        console.log('Generated embed thumbnail URL:', updatedThumbnailUrl);
       }
       
       setVideos(prev => prev.map(v => 
@@ -194,6 +192,11 @@ export default function Home() {
           ? { ...v, thumbnailUrl: updatedThumbnailUrl }
           : v
       ));
+
+      // Save to localStorage to persist across reloads
+      const savedThumbnails = JSON.parse(localStorage.getItem('bunnynet_thumbnails') || '{}');
+      savedThumbnails[video.videoId] = updatedThumbnailUrl;
+      localStorage.setItem('bunnynet_thumbnails', JSON.stringify(savedThumbnails));
 
       toast({
         title: "Thumbnail Regenerated",
@@ -1133,8 +1136,16 @@ export default function Home() {
 
       // Load existing AI titles from database
       const videosWithAiTitles = await loadExistingAiTitles(sortedVideoList);
-      setAllVideosLoaded(videosWithAiTitles);
-      setVideos(videosWithAiTitles);
+
+      // Load saved thumbnails from localStorage
+      const savedThumbnails = JSON.parse(localStorage.getItem('bunnynet_thumbnails') || '{}');
+      const videosWithThumbnails = videosWithAiTitles.map(video => ({
+        ...video,
+        thumbnailUrl: savedThumbnails[video.videoId] || video.thumbnailUrl
+      }));
+
+      setAllVideosLoaded(videosWithThumbnails);
+      setVideos(videosWithThumbnails);
       
       const sourceText = selectedFolder 
         ? `collection "${selectedFolder.name}"` 
