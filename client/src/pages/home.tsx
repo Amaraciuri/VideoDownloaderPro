@@ -1020,12 +1020,13 @@ export default function Home() {
         // Extract video information from this page
         const pageVideos: VimeoVideo[] = data.items.map((video: any) => {
           // Generate thumbnail URL for Bunny.net Stream
-          // Bunny.net automatically generates thumbnails at specific CDN URLs
-          let thumbnailUrl = video.thumbnailUrl || video.thumbnail;
+          // Try different possible thumbnail sources from Bunny.net API
+          let thumbnailUrl = video.thumbnailUrl || video.thumbnail || video.thumbnailFileName;
           
-          // If no thumbnail is provided, generate one using Bunny.net's CDN pattern
+          // If no thumbnail is provided, try Bunny.net's common thumbnail formats
           if (!thumbnailUrl && video.guid) {
-            thumbnailUrl = `https://vz-${bunnyLibraryId.substring(0, 8)}.b-cdn.net/${video.guid}/thumbnail.jpg`;
+            // Try the most common Bunny.net thumbnail format
+            thumbnailUrl = `https://vz-${bunnyLibraryId}.b-cdn.net/${video.guid}/play_1200x675.jpg`;
           }
           
           return {
