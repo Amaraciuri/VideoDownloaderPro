@@ -1017,13 +1017,24 @@ export default function Home() {
         const data = await response.json();
         
         // Extract video information from this page
-        const pageVideos: VimeoVideo[] = data.items.map((video: any) => ({
-          title: video.title || 'Untitled Video',
-          link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
-          downloadLink: video.mp4Url || null,
-          videoId: video.guid,
-          thumbnailUrl: video.thumbnailUrl
-        }));
+        const pageVideos: VimeoVideo[] = data.items.map((video: any) => {
+          // Generate thumbnail URL for Bunny.net Stream
+          // Bunny.net automatically generates thumbnails at specific CDN URLs
+          let thumbnailUrl = video.thumbnailUrl || video.thumbnail;
+          
+          // If no thumbnail is provided, generate one using Bunny.net's CDN pattern
+          if (!thumbnailUrl && video.guid) {
+            thumbnailUrl = `https://vz-${bunnyLibraryId.substring(0, 8)}.b-cdn.net/${video.guid}/thumbnail.jpg`;
+          }
+          
+          return {
+            title: video.title || 'Untitled Video',
+            link: video.embedUrl || `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}`,
+            downloadLink: video.mp4Url || null,
+            videoId: video.guid,
+            thumbnailUrl
+          };
+        });
 
         // Add to total collection
         allVideos = [...allVideos, ...pageVideos];
