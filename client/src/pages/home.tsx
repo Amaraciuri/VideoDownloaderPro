@@ -19,6 +19,7 @@ interface VimeoVideo {
   videoId?: string;
   duration?: number; // Duration in seconds
   iframeCode?: string; // Iframe embed code for Bunny.net Stream
+  hlsPlaylistUrl?: string; // HLS Playlist URL for streaming
 }
 
 interface VimeoFolder {
@@ -1204,7 +1205,9 @@ export default function Home() {
             thumbnailUrl,
             duration: video.length || video.duration, // Duration in seconds from Bunny.net API
             // Add iframe code for Bunny.net Stream videos
-            iframeCode: `<iframe src="https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}" loading="lazy" style="border: none; position: absolute; top: 0; height: 100%; width: 100%; color-scheme: light;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>`
+            iframeCode: `<iframe src="https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}" loading="lazy" style="border: none; position: absolute; top: 0; height: 100%; width: 100%; color-scheme: light;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>`,
+            // Add HLS Playlist URL for streaming
+            hlsPlaylistUrl: `https://${playbackZoneHostname}/${video.guid}/playlist.m3u8`
           };
         });
 
@@ -1538,13 +1541,14 @@ export default function Home() {
     try {
       // Create worksheet data
       const worksheetData = [
-        ['Original Title', 'AI Title', 'Duration', 'Video Link', 'Download Link', 'Iframe Code'],
+        ['Original Title', 'AI Title', 'Duration', 'Video Link', 'Download Link', 'HLS Playlist URL', 'Iframe Code'],
         ...videos.map(video => [
           video.title, 
           video.aiTitle || '', 
           formatDuration(video.duration),
           video.link, 
           video.downloadLink,
+          video.hlsPlaylistUrl || '', // Include HLS Playlist URL for streaming
           video.iframeCode || '' // Include iframe code for Bunny.net Stream videos
         ])
       ];
@@ -2782,6 +2786,24 @@ export default function Home() {
                                         title="Copy iframe embed code"
                                       >
                                         📺
+                                      </button>
+                                    )}
+                                    {/* Add HLS playlist copy button for Bunny.net Stream */}
+                                    {video.hlsPlaylistUrl && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(video.hlsPlaylistUrl || '');
+                                          toast({
+                                            title: "HLS URL Copied",
+                                            description: "HLS Playlist URL copied to clipboard",
+                                            duration: 3000,
+                                          });
+                                        }}
+                                        className="ml-1 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        title="Copy HLS Playlist URL"
+                                      >
+                                        📡
                                       </button>
                                     )}
                                   </div>
