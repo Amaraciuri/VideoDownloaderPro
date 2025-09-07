@@ -155,9 +155,10 @@ export default function Home() {
 
     for (const video of videosToProcess) {
       try {
-        // Use the correct Bunny.net thumbnail pattern (direct image URL)
+        // Try multiple Bunny.net thumbnail URL patterns
         const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
-        const updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg`;
+        // Try the iframe screenshot approach that sometimes works
+        const updatedThumbnailUrl = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?screenshot=true&time=10&width=640&height=360`;
         
         // Update state
         setVideos(prev => prev.map(v => 
@@ -247,11 +248,10 @@ export default function Home() {
       let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
       
       if (!updatedThumbnailUrl) {
-        // Use the correct Bunny.net thumbnail pattern (direct image URL)
-        const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
-        updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg`;
+        // Try iframe screenshot approach for better accessibility
+        updatedThumbnailUrl = `https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.videoId}?screenshot=true&time=10&width=640&height=360`;
         
-        console.log('Generated direct thumbnail URL:', updatedThumbnailUrl);
+        console.log('Generated iframe screenshot URL:', updatedThumbnailUrl);
       }
       
       setVideos(prev => prev.map(v => 
