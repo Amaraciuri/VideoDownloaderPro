@@ -375,6 +375,34 @@ export default function Home() {
     setAiAnalyzing(prev => new Set(Array.from(prev).concat([video.videoId!])));
     
     try {
+      // For Bunny.net videos, get signed URL first
+      let thumbnailUrlToAnalyze = video.thumbnailUrl;
+      if (provider === 'bunny-stream' && video.videoId && bunnyStreamApiKey && bunnyLibraryId) {
+        try {
+          const signedUrlResponse = await fetch('/api/get-signed-thumbnail-url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              videoId: video.videoId,
+              bunnyStreamApiKey,
+              bunnyLibraryId
+            }),
+          });
+
+          if (signedUrlResponse.ok) {
+            const { signedUrl } = await signedUrlResponse.json();
+            thumbnailUrlToAnalyze = signedUrl;
+            console.log('Using signed URL for AI analysis:', thumbnailUrlToAnalyze);
+          } else {
+            console.warn('Failed to get signed URL, using original URL');
+          }
+        } catch (error) {
+          console.warn('Error getting signed URL:', error);
+        }
+      }
+
       const response = await fetch('/api/analyze-thumbnail', {
         method: 'POST',
         headers: {
@@ -382,7 +410,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           videoId: video.videoId,
-          thumbnailUrl: video.thumbnailUrl,
+          thumbnailUrl: thumbnailUrlToAnalyze,
           originalTitle: video.title,
           userApiKey: userOpenAiKey || undefined
         }),

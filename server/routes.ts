@@ -66,6 +66,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate signed Bunny.net thumbnail URL  
+  app.post("/api/get-signed-thumbnail-url", async (req, res) => {
+    try {
+      const { videoId, bunnyStreamApiKey, bunnyLibraryId } = req.body;
+      
+      if (!videoId || !bunnyStreamApiKey || !bunnyLibraryId) {
+        return res.status(400).json({ 
+          error: 'Missing required parameters: videoId, bunnyStreamApiKey, bunnyLibraryId' 
+        });
+      }
+
+      // Create signed URL for Bunny.net thumbnail
+      const crypto = require('crypto');
+      const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
+      const baseUrl = `https://${playbackZoneHostname}/${videoId}/thumbnail.jpg`;
+      
+      // Generate token - Bunny.net uses security key for signing
+      const expirationTime = Math.floor(Date.now() / 1000) + (60 * 60); // 1 hour from now
+      const securityKey = bunnyStreamApiKey; // Use API key as security key for signing
+      
+      // Create the string to sign (path + expiration)
+      const pathToSign = `/${videoId}/thumbnail.jpg${expirationTime}`;
+      const hashBase64 = crypto
+        .createHmac('sha256', securityKey)
+        .update(pathToSign)
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+      
+      const signedUrl = `${baseUrl}?token=${hashBase64}&expires=${expirationTime}`;
+      
+      console.log('Generated signed thumbnail URL:', signedUrl);
+      
+      res.json({ signedUrl });
+      
+    } catch (error) {
+      console.error('Error generating signed thumbnail URL:', error);
+      res.status(500).json({ error: 'Failed to generate signed thumbnail URL' });
+    }
+  });
+
   // AI thumbnail analysis endpoint
   app.post("/api/analyze-thumbnail", async (req, res) => {
     try {

@@ -1,0 +1,32 @@
+You're getting a `403 Forbidden` error because the thumbnail URL is protected and requires a security token to be accessed. The link you have is the base URL, but it's missing the authentication key.
+
+This is a common security feature on video platforms like Bunny.net to prevent unauthorized embedding or "hotlinking."
+
+---
+
+## Why This Happens: Token Authentication
+
+The most likely reason for the 403 error is that the video library this thumbnail belongs to has **Token Authentication** enabled.
+
+* **What it is:** This is a security measure that ensures only authorized users or applications can access video content and its related files (like thumbnails).
+* **How it works:** To access the thumbnail, a temporary, unique security key (a "token") must be generated and added to the end of the URL as a query parameter. The server then validates this token before serving the image.
+* **The URL should look like this:**
+    `https://vz-b4e8eb65-16e.b-cdn.net/.../thumbnail.jpg?token=some_long_security_key&expires=timestamp`
+
+Since your URL doesn't have the `?token=...` part, Bunny.net's server is correctly denying your request, resulting in the **403 Forbidden** error.
+
+---
+
+## What Can You Do?
+
+Your next steps depend on who you are in this situation.
+
+### If You Are the Developer or Website Owner
+
+You need to generate a signed URL on your server using your Bunny Stream API key. This is done programmatically. You cannot just create the token by hand. The process involves creating a hash based on the video ID, your private key, and an expiration time.
+
+You'll need to consult the **Bunny.net Stream API documentation** for the specific code required to generate these signed URLs in your backend language (e.g., PHP, Node.js, Python).
+
+### If You Are a Visitor to a Website
+
+You cannot access this thumbnail directly. It's meant to be loaded by the website that owns the content, as their server generates the necessary token just before the page loads. The 403 error is the intended behavior to prevent direct access.
