@@ -2628,8 +2628,27 @@ export default function Home() {
                                   </div>
                                 )}
                                 {provider === 'bunny-stream' && (
-                                  <div className="text-xs text-gray-400">
-                                    {video.thumbnailUrl ? '🟢 Has thumb' : '🔴 No thumb'}
+                                  <div className="text-xs text-gray-400 flex items-center gap-1">
+                                    {video.thumbnailUrl ? (
+                                      <>
+                                        🟢 Has thumb
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigator.clipboard.writeText(video.thumbnailUrl || '');
+                                            toast({
+                                              title: "URL Copied",
+                                              description: `Thumbnail URL: ${video.thumbnailUrl}`,
+                                              duration: 3000,
+                                            });
+                                          }}
+                                          className="ml-1 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                          title="Copy thumbnail URL for debugging"
+                                        >
+                                          <Copy className="h-3 w-3" />
+                                        </button>
+                                      </>
+                                    ) : '🔴 No thumb'}
                                   </div>
                                 )}
                               </div>
