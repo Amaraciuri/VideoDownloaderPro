@@ -42,6 +42,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? new OpenAI({ apiKey: userApiKey })
         : openai;
 
+      // Download the image and convert to base64 for better OpenAI compatibility
+      let imageDataUrl: string;
+      try {
+        const imageResponse = await fetch(thumbnailUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+        }
+        
+        const imageBuffer = await imageResponse.arrayBuffer();
+        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        
+        // Detect image format from the URL or Content-Type
+        const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+        imageDataUrl = `data:${contentType};base64,${base64Image}`;
+        
+        console.log(`Successfully downloaded image: ${thumbnailUrl} (${contentType})`);
+      } catch (fetchError) {
+        console.error(`Failed to download image from ${thumbnailUrl}:`, fetchError);
+        return res.status(400).json({ error: `Cannot access thumbnail image: ${fetchError.message}` });
+      }
+
       // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       const response = await aiClient.chat.completions.create({
         model: "gpt-4o",
@@ -60,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               {
                 type: "image_url",
                 image_url: {
-                  url: thumbnailUrl
+                  url: imageDataUrl
                 }
               }
             ],
