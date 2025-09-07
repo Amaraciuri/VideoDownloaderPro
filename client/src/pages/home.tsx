@@ -2566,45 +2566,52 @@ export default function Home() {
                             </div>
                           ) : aiUnlocked ? (
                             <>
-                              {video.thumbnailUrl ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => extractAiTitle(video)}
-                                  disabled={aiAnalyzing.has(video.videoId!)}
-                                  className="flex items-center gap-1 h-8 px-2"
-                                  data-testid={`button-ai-title-${index}`}
-                                >
-                                  {aiAnalyzing.has(video.videoId!) ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                      <span className="text-xs">Generating...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="h-3 w-3" />
-                                      <span className="text-xs">AI Title</span>
-                                    </>
-                                  )}
-                                </Button>
-                              ) : provider === 'bunny-stream' ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => regenerateThumbnail(video)}
-                                  disabled={aiAnalyzing.has(video.videoId!)}
-                                  className="flex items-center gap-1 h-8 px-2 border-orange-300 text-orange-600 hover:bg-orange-50"
-                                  data-testid={`button-regenerate-thumbnail-${index}`}
-                                >
-                                  <Video className="h-3 w-3" />
-                                  <span className="text-xs">Gen Thumb</span>
-                                </Button>
-                              ) : (
-                                <div className="flex items-center gap-1 text-gray-400 text-xs">
-                                  <AlertCircle className="h-3 w-3" />
-                                  <span>No Thumbnail</span>
-                                </div>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {video.thumbnailUrl ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => extractAiTitle(video)}
+                                    disabled={aiAnalyzing.has(video.videoId!)}
+                                    className="flex items-center gap-1 h-8 px-2"
+                                    data-testid={`button-ai-title-${index}`}
+                                  >
+                                    {aiAnalyzing.has(video.videoId!) ? (
+                                      <>
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span className="text-xs">Generating...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="h-3 w-3" />
+                                        <span className="text-xs">AI Title</span>
+                                      </>
+                                    )}
+                                  </Button>
+                                ) : provider === 'bunny-stream' ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => regenerateThumbnail(video)}
+                                    disabled={aiAnalyzing.has(video.videoId!)}
+                                    className="flex items-center gap-1 h-8 px-2 border-orange-300 text-orange-600 hover:bg-orange-50"
+                                    data-testid={`button-regenerate-thumbnail-${index}`}
+                                  >
+                                    <Video className="h-3 w-3" />
+                                    <span className="text-xs">Gen Thumb</span>
+                                  </Button>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-gray-400 text-xs">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>No Thumbnail</span>
+                                  </div>
+                                )}
+                                {provider === 'bunny-stream' && (
+                                  <div className="text-xs text-gray-400">
+                                    {video.thumbnailUrl ? '🟢 Has thumb' : '🔴 No thumb'}
+                                  </div>
+                                )}
+                              </div>
                             </>
                           ) : (
                             <div className="flex items-center gap-1 text-gray-400 text-xs">
