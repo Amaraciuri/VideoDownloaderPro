@@ -18,6 +18,7 @@ interface VimeoVideo {
   aiTitle?: string;
   videoId?: string;
   duration?: number; // Duration in seconds
+  iframeCode?: string; // Iframe embed code for Bunny.net Stream
 }
 
 interface VimeoFolder {
@@ -174,11 +175,11 @@ export default function Home() {
       let updatedThumbnailUrl = responseData.thumbnailUrl || responseData.thumbnail;
       
       if (!updatedThumbnailUrl) {
-        // Use the correct Bunny.net thumbnail pattern
+        // Use the correct Bunny.net thumbnail pattern (direct image URL)
         const playbackZoneHostname = 'vz-b4e8eb65-16e.b-cdn.net';
-        updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg?v=${Date.now()}`;
+        updatedThumbnailUrl = `https://${playbackZoneHostname}/${video.videoId}/thumbnail.jpg`;
         
-        console.log('Generated correct thumbnail URL:', updatedThumbnailUrl);
+        console.log('Generated direct thumbnail URL:', updatedThumbnailUrl);
       }
       
       setVideos(prev => prev.map(v => 
@@ -1109,7 +1110,9 @@ export default function Home() {
             downloadLink: video.mp4Url || null,
             videoId: video.guid,
             thumbnailUrl,
-            duration: video.length || video.duration // Duration in seconds from Bunny.net API
+            duration: video.length || video.duration, // Duration in seconds from Bunny.net API
+            // Add iframe code for Bunny.net Stream videos
+            iframeCode: `<iframe src="https://iframe.mediadelivery.net/embed/${bunnyLibraryId}/${video.guid}" loading="lazy" style="border: none; position: absolute; top: 0; height: 100%; width: 100%; color-scheme: light;" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>`
           };
         });
 
@@ -2649,6 +2652,24 @@ export default function Home() {
                                         </button>
                                       </>
                                     ) : '🔴 No thumb'}
+                                    {/* Add iframe copy button for Bunny.net Stream */}
+                                    {video.iframeCode && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(video.iframeCode || '');
+                                          toast({
+                                            title: "Iframe Code Copied",
+                                            description: "Embed code copied to clipboard",
+                                            duration: 3000,
+                                          });
+                                        }}
+                                        className="ml-1 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        title="Copy iframe embed code"
+                                      >
+                                        📺
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
